@@ -1,0 +1,49 @@
+# ============================================================
+#  PROFITAI — Configuración de Netlify
+#  Este archivo le dice a Netlify cómo construir y desplegar
+#  el proyecto. No lo modifiques a menos que sepas lo que haces.
+# ============================================================
+
+[build]
+  publish = "."          # los HTMLs están en la raíz
+  functions = "netlify/functions"  # funciones serverless aquí
+
+# Redirige todas las llamadas /api/* a las funciones serverless
+# Así el frontend nunca habla directo con Alpha Vantage
+[[redirects]]
+  from = "/api/market"
+  to   = "/.netlify/functions/market"
+  status = 200
+
+[[redirects]]
+  from = "/api/quote"
+  to   = "/.netlify/functions/quote"
+  status = 200
+
+[[redirects]]
+  from = "/api/overview"
+  to   = "/.netlify/functions/overview"
+  status = 200
+
+[[redirects]]
+  from = "/api/daily"
+  to   = "/.netlify/functions/daily"
+  status = 200
+
+[[redirects]]
+  from = "/api/news"
+  to   = "/.netlify/functions/news"
+  status = 200
+
+[[redirects]]
+  from = "/api/crypto"
+  to   = "/.netlify/functions/crypto"
+  status = 200
+
+# Headers de seguridad
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

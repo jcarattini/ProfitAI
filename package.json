@@ -1,0 +1,8 @@
+{
+  "name": "profitai",
+  "version": "1.0.0",
+  "description": "ProfitAI — Terminal de Mercados con IA",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

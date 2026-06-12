@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProfitAI — Noticias</title>
+<style>
+  /* ============================================================
+     TERMINAL FINANCIERO — NOTICIAS FINANCIERAS
+     Mismo tema visual · Fondo #0A0A0A · Acento #00C896
+     ============================================================ */
+  :root {
+    --bg: #0A0A0A;
+    --panel: #121413;
+    --panel-edge: #1E2522;
+    --accent: #00C896;
+    --up: #00C896;
+    --down: #FF4D5E;
+    --warn: #FFC44D;
+    --text: #E8ECEA;
+    --muted: #7A8580;
+    --mono: "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; padding-bottom: 48px; }
+
+  header {
+    border-bottom: 1px solid var(--panel-edge);
+    padding: 18px 28px;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; justify-content: space-between;
+    position: sticky; top: 0; background: rgba(10,10,10,.92); backdrop-filter: blur(8px); z-index: 10;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; letter-spacing: 2px; font-weight: 600; }
+  .brand h1 span { color: var(--accent); }
+  .brand small { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  header time { font-size: 12px; color: var(--muted); }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 28px; }
+
+  /* ---------- CINTA DE ÚLTIMA HORA ---------- */
+  .ticker-bar {
+    border: 1px solid var(--panel-edge); border-left: 3px solid var(--down);
+    border-radius: 6px; background: var(--panel);
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; overflow: hidden; margin-bottom: 18px;
+  }
+  .ticker-bar .tag { font-size: 9px; letter-spacing: 1.5px; color: var(--down); font-weight: 700; flex-shrink: 0; }
+  .ticker-track { white-space: nowrap; overflow: hidden; flex: 1; }
+  .ticker-track span { display: inline-block; padding-right: 60px; font-size: 12px; animation: scroll 35s linear infinite; }
+  @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ---------- FILTROS ---------- */
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .chip {
+    font-size: 10px; letter-spacing: 1.5px; color: var(--muted);
+    border: 1px solid var(--panel-edge); border-radius: 99px;
+    padding: 7px 14px; cursor: pointer; background: none; font-family: var(--mono); font-weight: 600;
+    transition: color .2s, border-color .2s;
+  }
+  .chip:hover { color: var(--text); }
+  .chip.active { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- LISTA DE NOTICIAS ---------- */
+  .news-list { display: grid; gap: 12px; }
+  .news {
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 8px;
+    padding: 16px 18px; transition: border-color .2s;
+  }
+  .news:hover { border-color: var(--accent); }
+  .news-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .news-meta .src { font-size: 9px; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; }
+  .news-meta .time { font-size: 10px; color: var(--muted); }
+  .cat {
+    font-size: 9px; letter-spacing: 1px; padding: 3px 8px; border-radius: 3px;
+    border: 1px solid var(--panel-edge); color: var(--muted);
+  }
+  .sent { font-size: 9px; letter-spacing: 1px; padding: 3px 8px; border-radius: 3px; font-weight: 700; }
+  .sent.pos { background: rgba(0,200,150,.13); color: var(--up); }
+  .sent.neg { background: rgba(255,77,94,.13); color: var(--down); }
+  .sent.neu { background: rgba(255,196,77,.11); color: var(--warn); }
+  .news h3 { font-size: 14.5px; font-weight: 700; line-height: 1.55; margin-bottom: 7px; }
+  .news p { font-size: 11.5px; color: var(--muted); line-height: 1.7; }
+  .tickers { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tk {
+    font-size: 9px; letter-spacing: 1px; padding: 3px 8px; border-radius: 3px;
+    background: var(--bg); border: 1px solid var(--panel-edge); color: var(--text); font-weight: 600;
+  }
+  .empty { text-align: center; color: var(--muted); font-size: 12px; padding: 40px 0; }
+
+  footer { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: 1px; padding-top: 28px; }
+
+  @media (max-width: 640px){
+    .wrap { padding: 16px; }
+    header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>PROFIT<span>AI</span></h1>
+    <small>NOTICIAS FINANCIERAS</small>
+  </div>
+  <time id="now"></time>
+</header>
+
+<div class="wrap">
+
+  <div class="ticker-bar">
+    <span class="tag">● ÚLTIMA HORA</span>
+    <div class="ticker-track"><span id="tickerText"></span></div>
+  </div>
+
+  <div style="font-size:10px;color:var(--muted);margin-bottom:10px;letter-spacing:1px" id="srcTag">● CARGANDO…</div>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="news-list" id="list"></div>
+
+</div>
+
+<footer>TITULARES SIMULADOS CON FINES EDUCATIVOS · CONECTA UNA API PARA NOTICIAS REALES</footer>
+
+<script>
+/* ==================================================================
+   🔌 NOTICIAS REALES — ALPHA VANTAGE NEWS_SENTIMENT (CONECTADO)
+   ------------------------------------------------------------------
+   Una sola llamada trae hasta 20 titulares reales con sentimiento
+   ya calculado. Gasta 1 consulta al cargar la página.
+   Si falla o se agota el límite, muestra los titulares demo.
+   ================================================================== */
+const API_KEY = ""; // key movida al backend
+const USE_LIVE = true;
+
+async function fetchLiveNews() {
+  const url = `/api/news`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data["Note"] || data["Information"]) throw new Error("limit");
+  if (!data.feed || !data.feed.length) throw new Error("empty");
+
+  return data.feed.map(item => {
+    // Mapear sentimiento de Alpha Vantage a nuestro sistema
+    const sl = item.overall_sentiment_label || "";
+    const sent = sl.includes("Bullish") ? "pos" : sl.includes("Bearish") ? "neg" : "neu";
+
+    // Extraer tickers mencionados (máximo 4)
+    const tks = (item.ticker_sentiment || [])
+      .slice(0,4).map(t => t.ticker).filter(Boolean);
+
+    // Categoría basada en los topics
+    const topics = (item.topics || []).map(t => t.topic);
+    const cat = topics.includes("Earnings") ? "EMPRESAS"
+      : topics.includes("Technology") ? "TECNOLOGÍA"
+      : topics.includes("Economy - Macro") ? "MACRO"
+      : topics.includes("Financial Markets") ? "MERCADOS"
+      : topics.includes("Energy & Transportation") ? "ENERGÍA"
+      : "MERCADOS";
+
+    // Tiempo transcurrido
+    const pub = item.time_published; // formato: 20240611T143000
+    const pubDate = new Date(
+      pub.slice(0,4)+"-"+pub.slice(4,6)+"-"+pub.slice(6,8)+"T"+
+      pub.slice(9,11)+":"+pub.slice(11,13)+":"+pub.slice(13,15)
+    );
+    const minAgo = Math.round((Date.now() - pubDate) / 60000);
+
+    return {
+      cat, src: (item.source || "NEWS").toUpperCase().slice(0,20),
+      min: minAgo > 0 ? minAgo : 1,
+      sent, h: item.title, p: item.summary || "",
+      tks: tks.length ? tks : ["—"], live: true,
+    };
+  });
+}
+
+/* ---------- Titulares simulados (coherentes con el módulo macro) ---------- */
+const NEWS = [
+  { cat:"BANCOS CENTRALES", src:"FED WATCH", min:12, sent:"neu",
+    h:"La Fed se encamina a mantener tasas en 3.75–4.00% en la reunión del 17 de junio",
+    p:"El mercado descuenta con 91% de probabilidad que no habrá cambios, pero toda la atención estará en el 'dot plot' y en si Powell abre la puerta a un recorte en septiembre.",
+    tks:["SPX","TLT","DXY"] },
+  { cat:"TECNOLOGÍA", src:"MARKET WIRE", min:34, sent:"pos",
+    h:"Los semiconductores lideran las subidas ante nuevos pedidos de centros de datos de IA",
+    p:"El sector de chips avanza por tercera sesión consecutiva. Los analistas elevan estimaciones de gasto en infraestructura de IA para 2026-2027.",
+    tks:["NVDA","AMD","TSM","SMH"] },
+  { cat:"MACRO", src:"ECON DAILY", min:58, sent:"pos",
+    h:"La inflación CPI baja al 2.6% interanual y refuerza el escenario de aterrizaje suave",
+    p:"El dato de mayo quedó una décima por debajo del consenso. La inflación de servicios sigue siendo el componente más rígido, pero la tendencia general es a la baja.",
+    tks:["SPX","GLD","TIP"] },
+  { cat:"ENERGÍA", src:"COMMODITY DESK", min:75, sent:"neg",
+    h:"El petróleo WTI cae bajo los 72 dólares por aumento de inventarios en EE.UU.",
+    p:"Los inventarios crecieron más de lo previsto por segunda semana. La OPEP+ evalúa extender los recortes voluntarios de producción hasta fin de año.",
+    tks:["WTI","XLE","CVX"] },
+  { cat:"CRIPTO", src:"DIGITAL ASSETS", min:96, sent:"pos",
+    h:"Bitcoin se consolida sobre los 100.000 $ con entradas récord en los ETF al contado",
+    p:"Los ETF de Bitcoin acumulan su quinta semana consecutiva de flujos positivos. Los analistas señalan los 98.500 $ como soporte clave de corto plazo.",
+    tks:["BTC-USD","ETH-USD","COIN"] },
+  { cat:"EMPRESAS", src:"EARNINGS DESK", min:130, sent:"neg",
+    h:"Cadena minorista líder recorta previsiones y arrastra al sector de consumo discrecional",
+    p:"La compañía citó debilidad en categorías no esenciales y mayores costos logísticos. El sector retail cae con fuerza en la apertura.",
+    tks:["XLY","WMT","TGT"] },
+  { cat:"MACRO", src:"GLOBAL BRIEF", min:170, sent:"neu",
+    h:"El BCE mantiene tasas y reitera que las decisiones serán 'reunión a reunión'",
+    p:"Lagarde evitó comprometerse con un calendario de recortes. El euro reaccionó con ligeras subidas frente al dólar tras la conferencia.",
+    tks:["EURUSD","EZU"] },
+  { cat:"BONOS", src:"RATES DESK", min:210, sent:"pos",
+    h:"El Tesoro a 10 años cede al 4.18% tras el buen dato de inflación",
+    p:"La curva 2s10s amplía su pendiente positiva a +26 puntos básicos, alejando la clásica señal de recesión por inversión de curva.",
+    tks:["TLT","IEF","TNX"] },
+  { cat:"TECNOLOGÍA", src:"MARKET WIRE", min:250, sent:"neu",
+    h:"Reguladores de EE.UU. y la UE avanzan en nuevas normas para modelos de IA de gran escala",
+    p:"Las grandes tecnológicas descuentan mayores costos de cumplimiento. El impacto en resultados se estima limitado para 2026, según analistas.",
+    tks:["MSFT","GOOGL","META"] },
+  { cat:"EMPRESAS", src:"M&A WATCH", min:300, sent:"pos",
+    h:"Operación de fusión de 18.000 millones reactiva al sector salud",
+    p:"La prima ofrecida del 28% dispara las especulaciones sobre más consolidación en biotecnología y dispositivos médicos.",
+    tks:["XLV","JNJ","PFE"] },
+  { cat:"BANCOS CENTRALES", src:"ASIA BRIEF", min:360, sent:"neg",
+    h:"El Banco de Japón insinúa otra subida de tasas y el yen se fortalece con fuerza",
+    p:"El USD/JPY cae más de un 0.3%. Los estrategas advierten sobre el posible desarme adicional de operaciones de carry trade.",
+    tks:["USDJPY","EWJ","N225"] },
+  { cat:"CRIPTO", src:"DIGITAL ASSETS", min:420, sent:"neu",
+    h:"Solana y XRP divergen: los flujos institucionales se concentran en los grandes",
+    p:"BTC y ETH captan la mayor parte del capital institucional, mientras las altcoins muestran un comportamiento mixto en la semana.",
+    tks:["SOL","XRP","BTC-USD"] },
+];
+
+const SENT_LBL = { pos:"ALCISTA", neg:"BAJISTA", neu:"NEUTRAL" };
+
+/* ---------- Filtros ---------- */
+let activeCat = "TODAS";
+const filtersEl = document.getElementById("filters");
+
+filtersEl.addEventListener("click", e=>{
+  const c = e.target.dataset?.cat; if (!c) return;
+  activeCat = c;
+  filtersEl.querySelectorAll(".chip").forEach(ch=>ch.classList.toggle("active", ch.dataset.cat===c));
+  render();
+});
+
+/* ---------- Render ---------- */
+function ago(min){
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min/60), m = min%60;
+  return `hace ${h} h${m?` ${m} min`:""}`;
+}
+
+let currentNews = NEWS;
+
+function render(){
+  const items = currentNews.filter(n => activeCat==="TODAS" || n.cat===activeCat);
+  document.getElementById("list").innerHTML = items.length ? items.map(n=>`
+    <article class="news">
+      <div class="news-meta">
+        <span class="src">${n.src}</span>
+        <span class="time">${ago(n.min)}</span>
+        <span class="cat">${n.cat}</span>
+        <span class="sent ${n.sent}">${SENT_LBL[n.sent]}</span>
+      </div>
+      <h3>${n.h}</h3>
+      <p>${n.p}</p>
+      <div class="tickers">${n.tks.map(t=>`<span class="tk">${t}</span>`).join("")}</div>
+    </article>`).join("")
+    : `<div class="empty">No hay titulares en esta categoría por ahora.</div>`;
+}
+
+function setNews(items, isLive) {
+  currentNews = items;
+  const cats = ["TODAS", ...new Set(items.map(n=>n.cat))];
+  filtersEl.innerHTML = cats.map(c=>`<button class="chip ${c==="TODAS"?"active":""}" data-cat="${c}">${c}</button>`).join("");
+  activeCat = "TODAS";
+  const breaking = items.slice(0,4).map(n=>n.h).join("  ···  ");
+  document.getElementById("tickerText").textContent = breaking + "  ···  " + breaking;
+  const srcTag = document.getElementById("srcTag");
+  if(srcTag) srcTag.innerHTML = isLive
+    ? `● <b style="color:var(--accent)">NOTICIAS EN VIVO</b> · Alpha Vantage`
+    : `● NOTICIAS DEMO · datos simulados`;
+  render();
+}
+
+/* ---------- Carga: datos reales o demo ---------- */
+async function loadNews() {
+  if (!USE_LIVE) { setNews(NEWS, false); return; }
+  try {
+    const live = await fetchLiveNews();
+    setNews(live, true);
+  } catch(e) {
+    setNews(NEWS, false);
+  }
+}
+
+// Inicializa con demo mientras carga la API
+setNews(NEWS, false);
+loadNews();
+
+/* ---------- Reloj ---------- */
+function tick(){ document.getElementById("now").textContent =
+  new Date().toLocaleString("es-ES",{dateStyle:"medium",timeStyle:"medium"}); }
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>

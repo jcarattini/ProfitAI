@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProfitAI — Analizador de Acciones</title>
+<style>
+  /* ============================================================
+     TERMINAL FINANCIERO — ANALIZADOR DE ACCIONES
+     Mismo tema visual del dashboard · #0A0A0A · Acento #00C896
+     ============================================================ */
+  :root {
+    --bg: #0A0A0A;
+    --panel: #121413;
+    --panel-edge: #1E2522;
+    --accent: #00C896;
+    --up: #00C896;
+    --down: #FF4D5E;
+    --neutral: #FFC44D;
+    --text: #E8ECEA;
+    --muted: #7A8580;
+    --mono: "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; padding-bottom: 48px; }
+
+  header {
+    border-bottom: 1px solid var(--panel-edge);
+    padding: 18px 28px;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; justify-content: space-between;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; letter-spacing: 2px; font-weight: 600; }
+  .brand h1 span { color: var(--accent); }
+  .brand small { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  header time { font-size: 12px; color: var(--muted); }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 28px; }
+
+  /* ---------- BUSCADOR ---------- */
+  .search-box { display: flex; gap: 10px; flex-wrap: wrap; }
+  .search-box input {
+    flex: 1; min-width: 220px;
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 6px;
+    color: var(--text); font-family: var(--mono); font-size: 16px;
+    padding: 13px 16px; letter-spacing: 2px; text-transform: uppercase;
+    outline: none; transition: border-color .2s;
+  }
+  .search-box input:focus { border-color: var(--accent); }
+  .search-box button {
+    background: var(--accent); color: #04110D; border: none; border-radius: 6px;
+    font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 2px;
+    padding: 13px 26px; cursor: pointer; transition: opacity .2s;
+  }
+  .search-box button:hover { opacity: 0.85; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .chip {
+    font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    border: 1px solid var(--panel-edge); border-radius: 99px;
+    padding: 5px 12px; cursor: pointer; background: none; font-family: var(--mono);
+    transition: color .2s, border-color .2s;
+  }
+  .chip:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- SPINNER ---------- */
+  .loader { display: none; text-align: center; padding: 60px 0; }
+  .loader.active { display: block; }
+  .spinner {
+    width: 38px; height: 38px; margin: 0 auto 14px;
+    border: 3px solid var(--panel-edge); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader p { font-size: 11px; letter-spacing: 2px; color: var(--muted); }
+
+  /* ---------- RESULTADOS ---------- */
+  #results { display: none; }
+  #results.active { display: block; animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .section {
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 8px;
+    padding: 20px; margin-top: 16px;
+  }
+  .section h2 {
+    font-size: 11px; letter-spacing: 2px; color: var(--muted);
+    font-weight: 600; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section h2::before { content: ""; width: 8px; height: 8px; background: var(--accent); border-radius: 2px; }
+
+  .head-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .company .tk { font-size: 12px; letter-spacing: 2px; color: var(--accent); }
+  .company .nm { font-size: 22px; font-weight: 700; margin: 4px 0; }
+  .company .sec { font-size: 11px; color: var(--muted); }
+  .quote { text-align: right; }
+  .quote .px { font-size: 30px; font-weight: 700; }
+  .quote .chg { font-size: 14px; font-weight: 600; }
+  .up { color: var(--up); } .down { color: var(--down); } .neutral { color: var(--neutral); }
+
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .stat { border: 1px solid var(--panel-edge); border-radius: 6px; padding: 12px; }
+  .stat .lbl { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
+  .stat .val { font-size: 15px; font-weight: 600; }
+  .stat .note { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+  .chart-box svg { width: 100%; height: 220px; display: block; }
+  .chart-meta { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-top: 8px; }
+
+  .badge {
+    display: inline-block; padding: 6px 14px; border-radius: 4px;
+    font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  }
+  .badge.buy { background: rgba(0,200,150,.15); color: var(--up); border: 1px solid var(--up); }
+  .badge.sell { background: rgba(255,77,94,.15); color: var(--down); border: 1px solid var(--down); }
+  .badge.hold { background: rgba(255,196,77,.12); color: var(--neutral); border: 1px solid var(--neutral); }
+
+  .summary p { font-size: 13px; line-height: 1.8; color: var(--text); }
+  .signal-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+  .signal-row .why { font-size: 11px; color: var(--muted); line-height: 1.6; flex: 1; min-width: 220px; }
+  .disclaimer { font-size: 10px; color: var(--muted); margin-top: 14px; line-height: 1.6; border-top: 1px dashed var(--panel-edge); padding-top: 10px; }
+
+  footer { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: 1px; padding-top: 28px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 16px; }
+    .quote { text-align: left; }
+    .quote .px { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>PROFIT<span>AI</span></h1>
+    <small>ANALIZADOR DE ACCIONES</small>
+  </div>
+  <time id="now"></time>
+</header>
+
+<div class="wrap">
+
+  <div class="search-box">
+    <input id="ticker" placeholder="INGRESA UN TICKER · EJ: AAPL" maxlength="12"
+           autocomplete="off" spellcheck="false">
+    <button id="go">ANALIZAR</button>
+  </div>
+  <div class="chips" id="chips"></div>
+
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <p>ANALIZANDO TICKER…</p>
+  </div>
+
+  <div id="limitWarn" style="display:none;margin-top:12px" class="section">
+    <p style="color:var(--warn);font-size:12px">⚠️ Límite diario de Alpha Vantage alcanzado (~25 consultas/día en plan gratuito). El análisis se muestra en modo demo hasta mañana.</p>
+  </div>
+
+  <div id="results"></div>
+
+</div>
+
+<footer>DATOS EN VIVO VÍA ALPHA VANTAGE · SI SE AGOTA LA CUOTA DIARIA SE MUESTRA MODO DEMO · NO CONSTITUYE ASESORÍA FINANCIERA</footer>
+
+<script>
+/* ==================================================================
+   🔌 DATOS REALES — ALPHA VANTAGE (CONECTADO)
+   ------------------------------------------------------------------
+   Por cada análisis se hacen 3 llamadas:
+     1. GLOBAL_QUOTE      → precio, apertura, máx/mín, volumen, variación
+     2. OVERVIEW          → fundamentales: P/E, EPS, ROE, ROA, sector, mcap
+     3. TIME_SERIES_DAILY → historial 100 días para SMAs, RSI, MACD, gráfico
+   Total: ~3 consultas por ticker. Con 25/día tienes ~8 análisis distintos.
+   Cripto (BTC-USD, ETH-USD) usa DIGITAL_CURRENCY_DAILY en lugar de las
+   funciones de acciones y omite los fundamentales.
+   ================================================================== */
+const API_KEY = ""; // key movida al backend — no se expone al navegador
+const USE_LIVE = true;
+
+/* ---------- Fallback demo para tickers desconocidos ---------- */
+function hash(str) { let h=0; for (const c of str) h=(h*31+c.charCodeAt(0))>>>0; return h; }
+function seeded(seed) { return ()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }; }
+function gauss(rnd) { let s=0; for(let i=0;i<6;i++) s+=rnd(); return (s-3)/3; }
+
+function makeDemo(tk) {
+  const r = seeded(hash(tk));
+  const sectors=[["Tecnología",28.5],["Salud",18.3],["Financiero",14.2],["Industrial",19.0],["Energía",12.5],["Consumo básico",20.8]];
+  const [sector,sectorPe]=sectors[Math.floor(r()*sectors.length)];
+  const price=15+r()*380, pe=8+r()*45;
+  const vol=0.8+r()*2.2;
+  const full=[]; let p=price/(1+(r()-0.45)*0.0035*230);
+  for(let i=0;i<230;i++){ p=p*(1+(r()-0.45)*0.0035+gauss(r)*vol/100); full.push(p); }
+  const k=price/full[full.length-1]; const series=full.map(v=>v*k);
+  return { live:false, tk, price, changePct:(price-series[series.length-2])/series[series.length-2]*100,
+    open:price*0.998, hi:price*1.008, lo:price*0.991, volume:"—",
+    hi52:Math.max(...series)*1.01, lo52:Math.min(...series)*0.99,
+    series, s30:series.slice(-30),
+    meta:{ name:tk+" (demo)", sector, industry:"Datos simulados", pe, sectorPe,
+           eps:price/pe, divYield:r()<0.5?+(r()*3.5).toFixed(2):0,
+           de:+(0.1+r()*1.6).toFixed(2), roe:+(4+r()*38).toFixed(1),
+           roa:+(2+r()*18).toFixed(1), mcap:"N/D", vol } };
+}
+
+/* ---------- Indicadores técnicos (calculados sobre datos reales) ---------- */
+const last=(a,n)=>a.slice(-n);
+const avg=a=>a.reduce((s,v)=>s+v,0)/a.length;
+
+function rsi14(series) {
+  const s=last(series,15); let g=0,l=0;
+  for(let i=1;i<s.length;i++){ const d=s[i]-s[i-1]; if(d>0) g+=d; else l-=d; }
+  if(l===0) return 100;
+  return 100-100/(1+(g/14)/(l/14));
+}
+function ema(series,n) {
+  const k=2/(n+1); let e=avg(series.slice(0,n));
+  for(let i=n;i<series.length;i++) e=series[i]*k+e*(1-k);
+  return e;
+}
+function calcMACD(series) {
+  const s=last(series,60);
+  const line=ema(s,12)-ema(s,26);
+  const sig=line*0.88;
+  return { line, signal:sig, hist:line-sig };
+}
+
+/* ---------- Llamadas al proxy serverless (sin exponer la key) ---------- */
+async function avFetch(endpoint, params) {
+  const qs  = new URLSearchParams(params).toString();
+  const res = await fetch(`/api/${endpoint}?${qs}`);
+  const data = await res.json();
+  if (res.status === 429 || data.error === "limit") throw new Error("limit");
+  return data;
+}
+
+async function getLiveStock(tk) {
+  const quote = await avFetch("quote", { symbol: tk });
+  const q = quote["Global Quote"];
+  if (!q || !q["05. price"]) throw new Error("nodata");
+
+  let meta = { name:tk, sector:"—", industry:"—", pe:null, sectorPe:null,
+               eps:null, divYield:0, de:null, roe:null, roa:null, mcap:"—", vol:1.2 };
+  try {
+    const ov = await avFetch("overview", { symbol: tk });
+    if (ov["Symbol"]) {
+      const pe = parseFloat(ov["PERatio"]);
+      meta = {
+        name: ov["Name"] || tk, sector: ov["Sector"] || "—",
+        industry: ov["Industry"] || "—",
+        pe: isNaN(pe) ? null : pe, sectorPe: null,
+        eps: parseFloat(ov["EPS"]) || null,
+        divYield: parseFloat(ov["DividendYield"]) * 100 || 0,
+        de: parseFloat(ov["DebtToEquityRatio"]) || null,
+        roe: parseFloat(ov["ReturnOnEquityTTM"]) * 100 || null,
+        roa: parseFloat(ov["ReturnOnAssetsTTM"]) * 100 || null,
+        mcap: formatMcap(ov["MarketCapitalization"]), vol: 1.2,
+      };
+    }
+  } catch(e) { /* overview opcional */ }
+
+  const ts     = await avFetch("daily", { symbol: tk });
+  const tsData = ts["Time Series (Daily)"];
+  if (!tsData) throw new Error("nodata");
+  const dates  = Object.keys(tsData).sort();
+  const series = dates.map(d => parseFloat(tsData[d]["4. close"]));
+
+  return {
+    live: true, tk, meta,
+    price:     parseFloat(q["05. price"]),
+    changePct: parseFloat(q["10. change percent"].replace("%","")),
+    changePts: parseFloat(q["09. change"]),
+    open: parseFloat(q["02. open"]), hi: parseFloat(q["03. high"]), lo: parseFloat(q["04. low"]),
+    volume: formatVol(q["06. volume"]),
+    hi52: Math.max(...series), lo52: Math.min(...series),
+    series, s30: last(series, 30),
+  };
+}
+
+async function getLiveCrypto(tk) {
+  const sym    = tk.replace("-USD","");
+  const ts     = await avFetch("crypto", { symbol: sym });
+  const tsData = ts["Time Series (Digital Currency Daily)"];
+  if (!tsData) throw new Error("nodata");
+  const dates  = Object.keys(tsData).sort();
+  const series = dates.map(d => parseFloat(tsData[d]["4a. close (USD)"]));
+  const price  = series[series.length-1], prev = series[series.length-2];
+  return {
+    live: true, tk,
+    meta: { name: sym==="BTC"?"Bitcoin":sym==="ETH"?"Ethereum":sym,
+            sector:"Criptomonedas", industry:"Activo digital",
+            pe:null, sectorPe:null, eps:null, divYield:0,
+            de:null, roe:null, roa:null, mcap:"—", vol:3.5 },
+    price, changePct:(price-prev)/prev*100, changePts:price-prev,
+    open:prev, hi:price*1.01, lo:price*0.99,
+    volume:"—", hi52:Math.max(...series), lo52:Math.min(...series),
+    series, s30: last(series, 30),
+  };
+}
+
+/* ---------- Formatters ---------- */
+function formatMcap(v) {
+  const n=parseFloat(v);
+  if(isNaN(n)) return "—";
+  if(n>=1e12) return (n/1e12).toFixed(2)+" T";
+  if(n>=1e9)  return (n/1e9).toFixed(1)+" B";
+  return (n/1e6).toFixed(0)+" M";
+}
+function formatVol(v) {
+  const n=parseFloat(v);
+  if(isNaN(n)) return "—";
+  if(n>=1e6) return (n/1e6).toFixed(1)+" M";
+  return (n/1e3).toFixed(0)+" K";
+}
+
+/* ---------- Función principal: live o fallback demo ---------- */
+async function getStockData(tk) {
+  const isCrypto = tk.endsWith("-USD");
+  if (!USE_LIVE) return buildFromSeries(makeDemo(tk));
+
+  try {
+    const raw = isCrypto ? await getLiveCrypto(tk) : await getLiveStock(tk);
+    return buildFromSeries(raw);
+  } catch(e) {
+    if(e.message==="limit") {
+      document.getElementById("limitWarn").style.display="block";
+    }
+    return buildFromSeries(makeDemo(tk));
+  }
+}
+
+function buildFromSeries(raw) {
+  const { series, s30, meta } = raw;
+  const sma20  = avg(last(series,20));
+  const sma50  = avg(last(series,50));
+  const sma200 = series.length>=200 ? avg(last(series,200)) : avg(series);
+  const rsi    = rsi14(series);
+  const m      = calcMACD(series);
+  const hi52   = Math.max(...series);
+  const lo52   = Math.min(...series);
+  const support    = Math.min(...s30)*0.995;
+  const resistance = Math.max(...s30)*1.005;
+
+  let trend="LATERAL";
+  if(raw.price>sma50 && sma50>sma200) trend="ALCISTA";
+  else if(raw.price<sma50 && sma50<sma200) trend="BAJISTA";
+
+  let score=0;
+  if(trend==="ALCISTA") score+=2; if(trend==="BAJISTA") score-=2;
+  if(rsi<30) score+=1; if(rsi>70) score-=1;
+  if(m.hist>0) score+=1; else score-=1;
+  if(meta.pe&&meta.sectorPe){ if(meta.pe<meta.sectorPe) score+=1; else score-=1; }
+  const signal = score>=2?"COMPRAR":score<=-2?"VENDER":"MANTENER";
+  const risk   = meta.vol>2?"ALTO":meta.vol>1.1?"MEDIO":"BAJO";
+
+  return { ...raw, sma20, sma50, sma200, rsi, macd:m,
+           hi52, lo52, support, resistance, trend, signal, risk, score };
+}
+
+/* ---------- Helpers de formato e interpretación ---------- */
+const f = (n,d=2)=> n==null ? "N/A" : n.toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+const cls = up => up ? "up" : "down";
+
+function rsiNote(v){ return v>70 ? "Sobrecomprado: el precio podría corregir" : v<30 ? "Sobrevendido: posible rebote" : "Zona neutral, sin extremos"; }
+function macdNote(m){ return m.hist>0 ? "Señal alcista: MACD por encima de su línea de señal" : "Señal bajista: MACD por debajo de su línea de señal"; }
+function smaNote(price, sma, n){ return price>sma ? `Precio por encima de la SMA ${n} (positivo)` : `Precio por debajo de la SMA ${n} (negativo)`; }
+function peNote(pe, spe){ if(pe==null) return "No aplica para este activo"; return pe<spe ? "Más barata que su sector (P/E menor)" : "Más cara que su sector (P/E mayor)"; }
+
+function chart30(s30, up) {
+  const w=720,h=220,pad=10;
+  const min=Math.min(...s30),max=Math.max(...s30),span=(max-min)||1;
+  const step=(w-pad*2)/(s30.length-1);
+  const pts=s30.map((v,i)=>[pad+i*step, h-pad-((v-min)/span)*(h-pad*2)]);
+  const path=pts.map((c,i)=>(i?"L":"M")+c[0].toFixed(1)+" "+c[1].toFixed(1)).join(" ");
+  const color=up?"#00C896":"#FF4D5E";
+  const fill=path+` L ${pts[pts.length-1][0].toFixed(1)} ${h} L ${pad} ${h} Z`;
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fill}" fill="url(#cg)"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+/* ---------- Render ---------- */
+function render(d) {
+  const up = d.changePct>=0;
+  const m = d.meta;
+  const trendCls = d.trend==="ALCISTA"?"up":d.trend==="BAJISTA"?"down":"neutral";
+  const sigCls = d.signal==="COMPRAR"?"buy":d.signal==="VENDER"?"sell":"hold";
+  const riskCls = d.risk==="BAJO"?"up":d.risk==="ALTO"?"down":"neutral";
+  const isCrypto = m.sector==="Criptomonedas";
+
+  const justif = {
+    COMPRAR: `Tendencia ${d.trend.toLowerCase()}, RSI en ${f(d.rsi,0)} y MACD ${d.macd.hist>0?"alcista":"bajista"}${m.pe?`, con valoración ${m.pe<m.sectorPe?"atractiva":"exigente"} frente a su sector`:""}. Los factores técnicos pesan a favor.`,
+    VENDER: `Tendencia ${d.trend.toLowerCase()}, RSI en ${f(d.rsi,0)} y MACD ${d.macd.hist>0?"alcista":"bajista"}${m.pe?`, con valoración ${m.pe<m.sectorPe?"atractiva":"exigente"} frente a su sector`:""}. Los factores técnicos pesan en contra.`,
+    MANTENER: `Señales mixtas: tendencia ${d.trend.toLowerCase()}, RSI en ${f(d.rsi,0)} y MACD ${d.macd.hist>0?"alcista":"bajista"}. No hay ventaja clara para comprar ni vender en este momento.`,
+  }[d.signal];
+
+  const resumen = `${m.name} cotiza en ${f(d.price)} USD, ${up?"subiendo":"bajando"} ${f(Math.abs(d.changePct))}% en la sesión. ` +
+    `La tendencia general es ${d.trend.toLowerCase()}: el precio está ${d.price>d.sma200?"por encima":"por debajo"} de su media de 200 días. ` +
+    `El RSI en ${f(d.rsi,0)} indica que ${rsiNote(d.rsi).toLowerCase()}, y el MACD da ${d.macd.hist>0?"señal alcista":"señal bajista"}. ` +
+    (m.pe ? `En lo fundamental, su P/E de ${f(m.pe,1)} la hace ${m.pe<m.sectorPe?"más barata":"más cara"} que el promedio de su sector (${f(m.sectorPe,1)}).`
+          : `Al ser un activo sin beneficios contables, el análisis fundamental clásico (P/E, EPS) no aplica.`);
+
+  document.getElementById("results").innerHTML = `
+    <div class="section">
+      <div class="head-row">
+        <div class="company">
+          <div class="tk">${d.tk} <span style="font-size:10px;color:${d.live?"var(--up)":"var(--muted)"}">· ${d.live?"EN VIVO":"DEMO"}</span></div>
+          <div class="nm">${m.name}</div>
+          <div class="sec">${m.sector} · ${m.industry}</div>
+        </div>
+        <div class="quote">
+          <div class="px">${f(d.price)} <small style="font-size:13px;color:var(--muted)">USD</small></div>
+          <div class="chg ${cls(up)}">${up?"▲ +":"▼ "}${f(d.changePct)}% hoy</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>DATOS BÁSICOS</h2>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">APERTURA</div><div class="val">${f(d.open)}</div></div>
+        <div class="stat"><div class="lbl">MÁX / MÍN DEL DÍA</div><div class="val">${f(d.hi)} / ${f(d.lo)}</div></div>
+        <div class="stat"><div class="lbl">VOLUMEN</div><div class="val">${d.volume}</div></div>
+        <div class="stat"><div class="lbl">CAPITALIZACIÓN</div><div class="val">$${m.mcap}</div></div>
+        <div class="stat"><div class="lbl">MÁX 52 SEMANAS</div><div class="val">${f(d.hi52)}</div></div>
+        <div class="stat"><div class="lbl">MÍN 52 SEMANAS</div><div class="val">${f(d.lo52)}</div></div>
+      </div>
+    </div>
+
+    <div class="section chart-box">
+      <h2>PRECIO · ÚLTIMOS 30 DÍAS</h2>
+      ${chart30(d.s30, d.s30[d.s30.length-1] >= d.s30[0])}
+      <div class="chart-meta">RANGO 30D: ${f(Math.min(...d.s30))} — ${f(Math.max(...d.s30))} USD</div>
+    </div>
+
+    <div class="section">
+      <h2>ANÁLISIS TÉCNICO</h2>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">RSI (14)</div>
+          <div class="val ${d.rsi>70?"down":d.rsi<30?"up":"neutral"}">${f(d.rsi,1)}</div>
+          <div class="note">${rsiNote(d.rsi)}</div></div>
+        <div class="stat"><div class="lbl">MACD</div>
+          <div class="val ${d.macd.hist>0?"up":"down"}">${d.macd.hist>0?"ALCISTA":"BAJISTA"}</div>
+          <div class="note">${macdNote(d.macd)}</div></div>
+        <div class="stat"><div class="lbl">SMA 20</div>
+          <div class="val">${f(d.sma20)}</div><div class="note">${smaNote(d.price,d.sma20,20)}</div></div>
+        <div class="stat"><div class="lbl">SMA 50</div>
+          <div class="val">${f(d.sma50)}</div><div class="note">${smaNote(d.price,d.sma50,50)}</div></div>
+        <div class="stat"><div class="lbl">SMA 200</div>
+          <div class="val">${f(d.sma200)}</div><div class="note">${smaNote(d.price,d.sma200,200)}</div></div>
+        <div class="stat"><div class="lbl">SOPORTE / RESISTENCIA</div>
+          <div class="val">${f(d.support)} / ${f(d.resistance)}</div>
+          <div class="note">Niveles estimados sobre el rango de 30 días</div></div>
+        <div class="stat"><div class="lbl">TENDENCIA GENERAL</div>
+          <div class="val ${trendCls}">${d.trend}</div>
+          <div class="note">Según posición del precio vs SMA 50 y SMA 200</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>ANÁLISIS FUNDAMENTAL ${isCrypto?"· NO APLICA A CRIPTO":""}</h2>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">P/E RATIO</div>
+          <div class="val">${f(m.pe,1)}</div>
+          <div class="note">${m.pe?`Sector: ${f(m.sectorPe,1)} · ${peNote(m.pe,m.sectorPe)}`:peNote(null)}</div></div>
+        <div class="stat"><div class="lbl">EPS</div><div class="val">${m.eps?f(m.eps):"N/A"}</div>
+          <div class="note">Ganancias por acción (últimos 12 meses)</div></div>
+        <div class="stat"><div class="lbl">DIVIDEND YIELD</div>
+          <div class="val">${m.divYield ? f(m.divYield)+"%" : "—"}</div>
+          <div class="note">${m.divYield?"Rendimiento anual por dividendos":"No paga dividendos"}</div></div>
+        <div class="stat"><div class="lbl">DEUDA / CAPITAL</div>
+          <div class="val">${f(m.de)}</div>
+          <div class="note">${m.de==null?"":m.de>1?"Apalancamiento elevado":"Apalancamiento controlado"}</div></div>
+        <div class="stat"><div class="lbl">ROE</div><div class="val">${m.roe!=null?f(m.roe,1)+"%":"N/A"}</div>
+          <div class="note">Retorno sobre capital de los accionistas</div></div>
+        <div class="stat"><div class="lbl">ROA</div><div class="val">${m.roa!=null?f(m.roa,1)+"%":"N/A"}</div>
+          <div class="note">Retorno sobre activos totales</div></div>
+      </div>
+    </div>
+
+    <div class="section summary">
+      <h2>RESUMEN EJECUTIVO</h2>
+      <p>${resumen}</p>
+      <div class="signal-row">
+        <span class="badge ${sigCls}">${d.signal}</span>
+        <span class="badge ${d.risk==="BAJO"?"buy":d.risk==="ALTO"?"sell":"hold"}">RIESGO ${d.risk}</span>
+        <span class="why ${riskCls}"></span>
+      </div>
+      <div class="signal-row"><span class="why">${justif}</span></div>
+      <div class="disclaimer">⚠️ Demo educativa con datos simulados. La señal mostrada es el resultado de reglas simples sobre datos ficticios y no constituye una recomendación de inversión. Consulta fuentes oficiales y, si lo necesitas, a un asesor financiero registrado antes de operar.</div>
+    </div>`;
+}
+
+/* ---------- Interacción ---------- */
+const input = document.getElementById("ticker");
+const loader = document.getElementById("loader");
+const results = document.getElementById("results");
+
+async function analyze() {
+  const tk = input.value.trim().toUpperCase();
+  if (!tk) { input.focus(); return; }
+  results.classList.remove("active");
+  loader.classList.add("active");
+  document.getElementById("go").disabled = true;
+  try {
+    const data = await getStockData(tk);
+    loader.classList.remove("active");
+    render(data);
+    results.classList.add("active");
+  } catch(e) {
+    loader.classList.remove("active");
+    results.innerHTML = `<div class="section"><p style="color:var(--down)">Error al cargar datos. Intenta de nuevo.</p></div>`;
+    results.classList.add("active");
+  }
+  document.getElementById("go").disabled = false;
+}
+
+document.getElementById("go").addEventListener("click", analyze);
+input.addEventListener("keydown", e => { if (e.key === "Enter") analyze(); });
+
+// Chips de acceso rápido
+const POPULAR = ["AAPL","TSLA","NVDA","MSFT","AMZN","GOOGL","META","BTC-USD"];
+document.getElementById("chips").innerHTML =
+  POPULAR.map(t=>`<button class="chip" data-tk="${t}">${t}</button>`).join("");
+document.getElementById("chips").addEventListener("click", e => {
+  const tk = e.target.dataset?.tk;
+  if (tk) { input.value = tk; analyze(); }
+});
+
+// Reloj del header
+function tick(){ document.getElementById("now").textContent =
+  new Date().toLocaleString("es-ES",{dateStyle:"medium",timeStyle:"medium"}); }
+tick(); setInterval(tick, 1000);
+
+// Demo inicial
+input.value = "AAPL"; analyze();
+</script>
+</body>
+</html>

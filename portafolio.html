@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProfitAI — Análisis de Portafolio</title>
+<style>
+  /* ============================================================
+     TERMINAL FINANCIERO — ANÁLISIS DE PORTAFOLIO
+     Mismo tema visual · Fondo #0A0A0A · Acento #00C896
+     ============================================================ */
+  :root {
+    --bg: #0A0A0A;
+    --panel: #121413;
+    --panel-edge: #1E2522;
+    --accent: #00C896;
+    --up: #00C896;
+    --down: #FF4D5E;
+    --warn: #FFC44D;
+    --text: #E8ECEA;
+    --muted: #7A8580;
+    --mono: "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; padding-bottom: 48px; }
+
+  header {
+    border-bottom: 1px solid var(--panel-edge);
+    padding: 18px 28px;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; justify-content: space-between;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; letter-spacing: 2px; font-weight: 600; }
+  .brand h1 span { color: var(--accent); }
+  .brand small { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  header time { font-size: 12px; color: var(--muted); }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 28px; display: grid; gap: 16px; }
+
+  .section { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 8px; padding: 20px; }
+  .section h2 {
+    font-size: 11px; letter-spacing: 2px; color: var(--muted); font-weight: 600;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .section h2::before { content: ""; width: 8px; height: 8px; background: var(--accent); border-radius: 2px; }
+
+  /* ---------- TABLA DE POSICIONES ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-size: 9px; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--panel-edge); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--panel-edge); }
+  tr:last-child td { border-bottom: none; }
+  #posTable input, #posTable select {
+    width: 100%; background: var(--bg); border: 1px solid var(--panel-edge); border-radius: 4px;
+    color: var(--text); font-family: var(--mono); font-size: 12px; padding: 8px;
+    outline: none; transition: border-color .2s;
+  }
+  #posTable input:focus, #posTable select:focus { border-color: var(--accent); }
+  .del-btn { background: none; border: 1px solid var(--panel-edge); color: var(--muted); border-radius: 4px; cursor: pointer; padding: 6px 10px; font-family: var(--mono); }
+  .del-btn:hover { color: var(--down); border-color: var(--down); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btn {
+    font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+    padding: 12px 22px; border-radius: 6px; cursor: pointer; transition: opacity .2s;
+  }
+  .btn.primary { background: var(--accent); color: #04110D; border: none; }
+  .btn.ghost { background: none; color: var(--text); border: 1px solid var(--panel-edge); }
+  .btn:hover { opacity: .85; }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- RESULTADOS ---------- */
+  #report { display: none; }
+  #report.active { display: grid; gap: 16px; animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform:none; } }
+
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .stat { border: 1px solid var(--panel-edge); border-radius: 6px; padding: 13px; }
+  .stat .lbl { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
+  .stat .val { font-size: 17px; font-weight: 700; }
+  .stat .sub { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.55; }
+  .up-t { color: var(--up); } .down-t { color: var(--down); } .warn-t { color: var(--warn); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 860px){ .grid-2 { grid-template-columns: 1fr; } }
+
+  .pie-wrap { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .pie-wrap svg { width: 170px; height: 170px; flex-shrink: 0; }
+  .legend { font-size: 11px; display: grid; gap: 7px; }
+  .legend span { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .chart-title { font-size: 10px; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 12px; }
+
+  .pill { display: inline-block; padding: 5px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; }
+  .pill.ok { background: rgba(0,200,150,.14); color: var(--up); border: 1px solid var(--up); }
+  .pill.alerta { background: rgba(255,196,77,.12); color: var(--warn); border: 1px solid var(--warn); }
+  .pill.peligro { background: rgba(255,77,94,.14); color: var(--down); border: 1px solid var(--down); }
+
+  .alert-box { border: 1px solid var(--warn); background: rgba(255,196,77,.07); border-radius: 6px; padding: 12px 14px; font-size: 11.5px; line-height: 1.7; margin-top: 12px; }
+  .alert-box.red { border-color: var(--down); background: rgba(255,77,94,.07); }
+
+  .rec li { list-style: none; display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--panel-edge); font-size: 12.5px; line-height: 1.75; }
+  .rec li:last-child { border-bottom: none; }
+  .rec .ico { flex-shrink: 0; }
+  .rec b { color: var(--accent); }
+
+  .scen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 640px){ .scen { grid-template-columns: 1fr; } }
+
+  .disclaimer { font-size: 10px; color: var(--muted); line-height: 1.6; border-top: 1px dashed var(--panel-edge); padding-top: 10px; margin-top: 6px; }
+  footer { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: 1px; padding-top: 24px; }
+
+  @media (max-width: 700px){
+    .wrap { padding: 16px; }
+    .table-scroll { overflow-x: auto; }
+    #posTable { min-width: 640px; }
+  }
+
+  /* ---------- IMPRESIÓN (Descargar PDF) ---------- */
+  @media print {
+    body { background: #fff; color: #111; }
+    header, .input-section, .btn-row, footer { display: none !important; }
+    .section { border-color: #ccc; background: #fff; break-inside: avoid; }
+    .section h2 { color: #333; }
+    .stat, .alert-box { border-color: #ccc; }
+    .up-t { color: #00795B; } .down-t { color: #C2202F; } .warn-t { color: #9A6E00; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>PROFIT<span>AI</span></h1>
+    <small>ANÁLISIS DE PORTAFOLIO</small>
+  </div>
+  <time id="now"></time>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ ENTRADA DE DATOS ============ -->
+  <section class="section input-section">
+    <h2>TUS POSICIONES</h2>
+    <div class="table-scroll">
+      <table id="posTable">
+        <thead>
+          <tr>
+            <th style="width:12%">TICKER</th>
+            <th style="width:22%">NOMBRE</th>
+            <th style="width:16%">SECTOR</th>
+            <th style="width:12%">CANTIDAD</th>
+            <th style="width:14%">PRECIO COMPRA $</th>
+            <th style="width:14%">PRECIO ACTUAL $</th>
+            <th style="width:6%"></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost" id="addRow">+ AGREGAR FILA</button>
+      <button class="btn primary" id="analyze">ANALIZAR PORTAFOLIO</button>
+    </div>
+  </section>
+
+  <!-- ============ REPORTE ============ -->
+  <div id="report"></div>
+
+</div>
+
+<footer>DATOS Y MÉTRICAS ESTIMADAS CON FINES EDUCATIVOS · NO CONSTITUYE ASESORÍA FINANCIERA</footer>
+
+<script>
+/* ==================================================================
+   🔌 DATOS REALES (opcional)
+   ------------------------------------------------------------------
+   - Precios actuales: Alpha Vantage GLOBAL_QUOTE o Yahoo Finance.
+   - Betas y volatilidades reales: calcula sobre series históricas
+     (TIME_SERIES_DAILY de Alpha Vantage) en lugar de las estimaciones
+     por sector de la tabla SECTOR_STATS de abajo.
+   ================================================================== */
+
+/* ---------- Estadísticas estimadas por sector (demo) ----------
+   beta: sensibilidad vs S&P 500 · vol: volatilidad anualizada %
+   div: dividend yield típico % · geo: región predominante        */
+const SECTOR_STATS = {
+  "Tecnología":            { beta:1.25, vol:28, div:0.6, geo:"USA" },
+  "Salud":                 { beta:0.80, vol:18, div:2.2, geo:"USA" },
+  "Financiero":            { beta:1.10, vol:22, div:2.6, geo:"USA" },
+  "Consumo discrecional":  { beta:1.30, vol:30, div:0.8, geo:"USA" },
+  "Consumo básico":        { beta:0.65, vol:14, div:2.8, geo:"USA" },
+  "Energía":               { beta:1.05, vol:26, div:3.5, geo:"Global" },
+  "Industrial":            { beta:1.00, vol:21, div:1.8, geo:"USA" },
+  "Comunicaciones":        { beta:1.05, vol:24, div:0.9, geo:"USA" },
+  "ETF Internacional":     { beta:0.90, vol:17, div:2.5, geo:"Internacional" },
+  "ETF USA (índice)":      { beta:1.00, vol:16, div:1.4, geo:"USA" },
+  "Bonos / Renta fija":    { beta:0.15, vol:6,  div:3.8, geo:"USA" },
+  "Criptomonedas":         { beta:2.20, vol:65, div:0.0, geo:"Global" },
+  "Otro":                  { beta:1.00, vol:22, div:1.2, geo:"USA" },
+};
+const SECTORS = Object.keys(SECTOR_STATS);
+const PALETTE = ["#00C896","#4DA3FF","#FFC44D","#FF4D5E","#B07CFF","#FF9D5C","#5CE1E6","#9DDE6B","#F273B5","#8C9A93"];
+
+/* ---------- Portafolio de ejemplo precargado ---------- */
+const DEMO = [
+  ["AAPL","Apple Inc.","Tecnología",15,168.50,232.40],
+  ["NVDA","NVIDIA Corp.","Tecnología",20,95.20,148.60],
+  ["MSFT","Microsoft Corp.","Tecnología",8,392.00,465.20],
+  ["JNJ","Johnson & Johnson","Salud",18,158.30,152.60],
+  ["JPM","JPMorgan Chase","Financiero",10,198.40,262.40],
+  ["VXUS","Vanguard Intl ETF","ETF Internacional",40,58.10,64.30],
+  ["BND","Vanguard Bonos ETF","Bonos / Renta fija",30,72.50,73.80],
+];
+
+/* ---------- Filas editables ---------- */
+const rowsEl = document.getElementById("rows");
+function rowHTML(d=["","","Tecnología","","",""]) {
+  const opts = SECTORS.map(s=>`<option ${s===d[2]?"selected":""}>${s}</option>`).join("");
+  return `<tr>
+    <td><input class="tk" value="${d[0]}" placeholder="AAPL" style="text-transform:uppercase"></td>
+    <td><input class="nm" value="${d[1]}" placeholder="Nombre"></td>
+    <td><select class="sec">${opts}</select></td>
+    <td><input class="qty" type="number" min="0" step="any" value="${d[3]}" placeholder="0"></td>
+    <td><input class="buy" type="number" min="0" step="any" value="${d[4]}" placeholder="0.00"></td>
+    <td><input class="cur" type="number" min="0" step="any" value="${d[5]}" placeholder="0.00"></td>
+    <td><button class="del-btn" title="Eliminar fila">✕</button></td>
+  </tr>`;
+}
+rowsEl.innerHTML = DEMO.map(rowHTML).join("");
+document.getElementById("addRow").onclick = () => rowsEl.insertAdjacentHTML("beforeend", rowHTML());
+rowsEl.addEventListener("click", e => {
+  if (e.target.classList.contains("del-btn")) e.target.closest("tr").remove();
+});
+
+/* ---------- Lectura y cálculo ---------- */
+function readPositions() {
+  return [...rowsEl.querySelectorAll("tr")].map(tr => ({
+    tk: tr.querySelector(".tk").value.trim().toUpperCase(),
+    nm: tr.querySelector(".nm").value.trim(),
+    sec: tr.querySelector(".sec").value,
+    qty: +tr.querySelector(".qty").value,
+    buy: +tr.querySelector(".buy").value,
+    cur: +tr.querySelector(".cur").value,
+  })).filter(p => p.tk && p.qty > 0 && p.buy > 0 && p.cur > 0);
+}
+
+function compute(pos) {
+  const RF = 0.04, MKT = 0.08; // tasa libre de riesgo y retorno esperado del mercado (demo)
+  pos.forEach(p => {
+    p.invested = p.qty * p.buy;
+    p.value = p.qty * p.cur;
+    p.pl = p.value - p.invested;
+    p.plPct = p.pl / p.invested * 100;
+    p.stats = SECTOR_STATS[p.sec] || SECTOR_STATS["Otro"];
+  });
+  const totInv = pos.reduce((s,p)=>s+p.invested,0);
+  const totVal = pos.reduce((s,p)=>s+p.value,0);
+  pos.forEach(p => p.weight = p.value / totVal);
+
+  const best = [...pos].sort((a,b)=>b.plPct-a.plPct)[0];
+  const worst = [...pos].sort((a,b)=>a.plPct-b.plPct)[0];
+  const beta = pos.reduce((s,p)=>s+p.weight*p.stats.beta,0);
+
+  // Volatilidad de cartera: combinación con correlación media estimada
+  const sectors = [...new Set(pos.map(p=>p.sec))];
+  const avgCorr = Math.max(0.25, 0.95 - sectors.length * 0.09); // más sectores → menor correlación media
+  const wVol = pos.reduce((s,p)=>s+p.weight*p.stats.vol,0);
+  const portVol = wVol * Math.sqrt(avgCorr + (1-avgCorr)/pos.length);
+
+  const expRet = RF*100 + beta * (MKT - RF) * 100; // CAPM demo
+  const sharpe = (expRet - RF*100) / portVol;
+  const maxDD = -(portVol * 1.9); // aproximación histórica demo
+  const divYield = pos.reduce((s,p)=>s+p.weight*p.stats.div,0);
+  const dividends = totVal * divYield / 100;
+
+  const riskLevel = portVol < 14 ? "CONSERVADOR" : portVol < 24 ? "MODERADO" : "AGRESIVO";
+  const alpha = (totVal/totInv - 1) * 100 - 11.5; // vs S&P 500 demo: +11.5% en el período
+
+  // Distribuciones
+  const bySector = {}, byGeo = {};
+  pos.forEach(p => {
+    bySector[p.sec] = (bySector[p.sec]||0) + p.weight;
+    byGeo[p.stats.geo] = (byGeo[p.stats.geo]||0) + p.weight;
+  });
+
+  return { pos, totInv, totVal, best, worst, beta, portVol, sharpe, maxDD,
+           divYield, dividends, riskLevel, alpha, avgCorr, bySector, byGeo, expRet };
+}
+
+/* ---------- Recomendaciones IA (reglas demo) ---------- */
+function recommendations(r) {
+  const recs = [];
+  const concentrated = r.pos.filter(p=>p.weight>0.20);
+  if (concentrated.length)
+    recs.push(["⚠️", `<b>Concentración elevada:</b> ${concentrated.map(p=>`${p.tk} (${(p.weight*100).toFixed(1)}%)`).join(", ")} supera el 20% del portafolio. Considera recortar parcialmente y redistribuir para reducir el riesgo específico.`]);
+  const techW = r.bySector["Tecnología"]||0;
+  if (techW > 0.40)
+    recs.push(["🖥️", `<b>Sesgo tecnológico:</b> el ${(techW*100).toFixed(0)}% está en Tecnología. Si el sector corrige, tu cartera lo sentirá amplificado. Sectores defensivos (Salud, Consumo básico) ayudarían a equilibrar.`]);
+  if (!r.bySector["Bonos / Renta fija"] && r.riskLevel !== "CONSERVADOR")
+    recs.push(["🛡️", `<b>Sin renta fija:</b> una posición del 10–20% en bonos suele reducir la volatilidad total con poco costo en retorno esperado.`]);
+  const geoInt = (r.byGeo["Internacional"]||0) + (r.byGeo["Global"]||0);
+  if (geoInt < 0.15)
+    recs.push(["🌍", `<b>Gap geográfico:</b> solo el ${(geoInt*100).toFixed(0)}% está fuera de EE.UU. Un ETF internacional (tipo VXUS o VEA) diversifica el riesgo país.`]);
+  else
+    recs.push(["🌍", `<b>Diversificación geográfica razonable:</b> el ${(geoInt*100).toFixed(0)}% fuera de EE.UU. amortigua el riesgo de concentración en un solo país.`]);
+  if (r.avgCorr > 0.65)
+    recs.push(["🔗", `<b>Correlación alta entre posiciones (~${r.avgCorr.toFixed(2)}):</b> tus activos tienden a moverse juntos; la diversificación real es menor de lo que aparenta el número de posiciones.`]);
+  else
+    recs.push(["🔗", `<b>Correlación moderada (~${r.avgCorr.toFixed(2)}):</b> tus posiciones no se mueven todas al unísono, lo que suaviza las caídas de la cartera.`]);
+  if (r.worst.plPct < -10)
+    recs.push(["🔄", `<b>Revisa ${r.worst.tk}:</b> pierde ${Math.abs(r.worst.plPct).toFixed(1)}%. Decide con tesis, no con esperanza: si las razones de compra siguen vigentes, mantener puede tener sentido; si no, rebalancear hacia mejores ideas.`]);
+  recs.push(["⚖️", `<b>Rebalanceo periódico:</b> revisa pesos cada 6–12 meses y devuelve cada posición a su peso objetivo. Vender un poco de lo que subió y comprar lo rezagado impone disciplina de "comprar barato, vender caro".`]);
+  return recs.slice(0,5);
+}
+
+/* ---------- Gráficos de pie (SVG) ---------- */
+function pie(data, title) { // data: [ [label, weight], ... ]
+  const cx=85, cy=85, R=80, r=46;
+  let a0 = -Math.PI/2, paths="", legend="";
+  data.sort((a,b)=>b[1]-a[1]).forEach(([lbl,w],i)=>{
+    const a1 = a0 + w * Math.PI*2;
+    const large = (a1-a0) > Math.PI ? 1 : 0;
+    const p = a => [cx+R*Math.cos(a), cy+R*Math.sin(a)];
+    const q = a => [cx+r*Math.cos(a), cy+r*Math.sin(a)];
+    const [x0,y0]=p(a0),[x1,y1]=p(a1),[u0,v0]=q(a1),[u1,v1]=q(a0);
+    const c = PALETTE[i % PALETTE.length];
+    paths += `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} L ${u0} ${v0} A ${r} ${r} 0 ${large} 0 ${u1} ${v1} Z" fill="${c}" stroke="#121413" stroke-width="2"/>`;
+    legend += `<span><i class="swatch" style="background:${c}"></i>${lbl} · ${(w*100).toFixed(1)}%</span>`;
+    a0 = a1;
+  });
+  return `<div class="chart-title">${title}</div>
+    <div class="pie-wrap">
+      <svg viewBox="0 0 170 170">${paths}</svg>
+      <div class="legend">${legend}</div>
+    </div>`;
+}
+
+/* ---------- Render del reporte ---------- */
+const usd = n => "$" + n.toLocaleString("es-ES",{minimumFractionDigits:2, maximumFractionDigits:2});
+const pct = n => (n>=0?"+":"") + n.toFixed(2) + "%";
+
+function render(r) {
+  const up = r.totVal >= r.totInv;
+  const plTot = r.totVal - r.totInv;
+  const byAsset = r.pos.map(p=>[p.tk, p.weight]);
+  const bySec = Object.entries(r.bySector);
+  const byGeo = Object.entries(r.byGeo);
+  const conc = r.pos.filter(p=>p.weight>0.20);
+  const recs = recommendations(r);
+
+  // Escenarios a 1 año (CAPM ± 1 desviación estándar, demo)
+  const base = r.expRet, pes = base - r.portVol, opt = base + r.portVol;
+  const scen = (lbl, ret, cls) => `
+    <div class="stat">
+      <div class="lbl">${lbl}</div>
+      <div class="val ${cls}">${pct(ret)}</div>
+      <div class="sub">≈ ${usd(r.totVal * (1+ret/100))}</div>
+    </div>`;
+
+  document.getElementById("report").innerHTML = `
+    <section class="section">
+      <h2>1 · RESUMEN DEL PORTAFOLIO</h2>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">VALOR INVERTIDO</div><div class="val">${usd(r.totInv)}</div></div>
+        <div class="stat"><div class="lbl">VALOR ACTUAL</div><div class="val">${usd(r.totVal)}</div></div>
+        <div class="stat"><div class="lbl">GANANCIA / PÉRDIDA</div>
+          <div class="val ${up?"up-t":"down-t"}">${up?"▲ ":"▼ "}${usd(Math.abs(plTot))}</div>
+          <div class="sub ${up?"up-t":"down-t"}">${pct(plTot/r.totInv*100)}</div></div>
+        <div class="stat"><div class="lbl">MEJOR POSICIÓN</div>
+          <div class="val up-t">${r.best.tk}</div><div class="sub">${pct(r.best.plPct)} · ${usd(r.best.pl)}</div></div>
+        <div class="stat"><div class="lbl">PEOR POSICIÓN</div>
+          <div class="val ${r.worst.plPct<0?"down-t":"warn-t"}">${r.worst.tk}</div>
+          <div class="sub">${pct(r.worst.plPct)} · ${usd(r.worst.pl)}</div></div>
+        <div class="stat"><div class="lbl">BETA DEL PORTAFOLIO</div>
+          <div class="val">${r.beta.toFixed(2)}</div>
+          <div class="sub">${r.beta>1.1?"Más volátil que el mercado":r.beta<0.9?"Menos volátil que el mercado":"Volatilidad similar al mercado"}</div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2 · DISTRIBUCIÓN Y DIVERSIFICACIÓN</h2>
+      <div class="grid-2">
+        <div>${pie(byAsset, "POR ACTIVO")}</div>
+        <div>${pie(bySec, "POR SECTOR")}</div>
+      </div>
+      <div class="grid-2" style="margin-top:20px">
+        <div>${pie(byGeo, "POR GEOGRAFÍA")}</div>
+        <div>
+          ${conc.length ? `<div class="alert-box">⚠️ <b>ALERTA DE CONCENTRACIÓN:</b> ${conc.map(p=>`${p.tk} representa el ${(p.weight*100).toFixed(1)}%`).join(" · ")}. Ninguna posición debería superar el 20% del portafolio.</div>`
+                        : `<div class="alert-box" style="border-color:var(--up);background:rgba(0,200,150,.06)">✓ Ninguna posición individual supera el 20% del portafolio. Buena distribución de pesos.</div>`}
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3 · ANÁLISIS DE RIESGO</h2>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">VOLATILIDAD ANUALIZADA</div>
+          <div class="val">${r.portVol.toFixed(1)}%</div>
+          <div class="sub">Desviación estándar estimada de la cartera</div></div>
+        <div class="stat"><div class="lbl">SHARPE RATIO (EST.)</div>
+          <div class="val ${r.sharpe>0.7?"up-t":r.sharpe>0.4?"warn-t":"down-t"}">${r.sharpe.toFixed(2)}</div>
+          <div class="sub">${r.sharpe>0.7?"Buen retorno por unidad de riesgo":r.sharpe>0.4?"Retorno/riesgo aceptable":"Poco retorno por el riesgo asumido"}</div></div>
+        <div class="stat"><div class="lbl">MÁX. DRAWDOWN ESTIMADO</div>
+          <div class="val down-t">${r.maxDD.toFixed(1)}%</div>
+          <div class="sub">Caída máxima histórica probable en un mal año</div></div>
+        <div class="stat"><div class="lbl">CORRELACIÓN MEDIA</div>
+          <div class="val ${r.avgCorr>0.65?"warn-t":"up-t"}">${r.avgCorr.toFixed(2)}</div>
+          <div class="sub">${r.avgCorr>0.65?"Posiciones muy correlacionadas: diversificación limitada":"Diversificación efectiva entre posiciones"}</div></div>
+        <div class="stat"><div class="lbl">NIVEL DE RIESGO GENERAL</div>
+          <div class="val" style="margin-top:2px">
+            <span class="pill ${r.riskLevel==="CONSERVADOR"?"ok":r.riskLevel==="MODERADO"?"alerta":"peligro"}">${r.riskLevel}</span>
+          </div>
+          <div class="sub">Según volatilidad y composición de la cartera</div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>4 · RENDIMIENTO Y PROYECCIÓN</h2>
+      <div class="grid-stats" style="margin-bottom:16px">
+        <div class="stat"><div class="lbl">VS S&P 500 (ALPHA, PERÍODO)</div>
+          <div class="val ${r.alpha>=0?"up-t":"down-t"}">${pct(r.alpha)}</div>
+          <div class="sub">${r.alpha>=0?"Tu cartera batió al índice de referencia":"El índice te ganó: comprar el S&P habría rendido más"} (S&P +11.5% demo)</div></div>
+        <div class="stat"><div class="lbl">DIVIDENDOS ESTIMADOS / AÑO</div>
+          <div class="val">${usd(r.dividends)}</div>
+          <div class="sub">Yield ponderado ≈ ${r.divYield.toFixed(2)}% anual</div></div>
+      </div>
+      <div class="chart-title">PROYECCIÓN A 1 AÑO · TRES ESCENARIOS</div>
+      <div class="scen">
+        ${scen("PESIMISTA (−1σ)", pes, "down-t")}
+        ${scen("BASE (CAPM)", base, "warn-t")}
+        ${scen("OPTIMISTA (+1σ)", opt, "up-t")}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>5 · RECOMENDACIONES IA</h2>
+      <ul class="rec">${recs.map(([i,t])=>`<li><span class="ico">${i}</span><span>${t}</span></li>`).join("")}</ul>
+    </section>
+
+    <section class="section">
+      <h2>6 · EXPORTAR REPORTE</h2>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn primary" onclick="window.print()">⬇ DESCARGAR PDF</button>
+        <button class="btn ghost" id="copyBtn">⧉ COPIAR RESUMEN</button>
+      </div>
+      <div class="disclaimer">⚠️ Las métricas (beta, volatilidad, Sharpe, drawdown, proyecciones) son estimaciones educativas basadas en promedios sectoriales, no en datos históricos reales de cada activo. Este reporte no constituye asesoría financiera; consulta a un asesor registrado antes de tomar decisiones de inversión.</div>
+    </section>`;
+
+  document.getElementById("report").classList.add("active");
+  document.getElementById("report").scrollIntoView({behavior:"smooth", block:"start"});
+
+  // Copiar resumen
+  document.getElementById("copyBtn").onclick = async (e) => {
+    const txt =
+`📊 RESUMEN DE PORTAFOLIO — ${new Date().toLocaleDateString("es-ES")}
+Invertido: ${usd(r.totInv)} · Valor actual: ${usd(r.totVal)} (${pct(plTot/r.totInv*100)})
+Mejor: ${r.best.tk} ${pct(r.best.plPct)} · Peor: ${r.worst.tk} ${pct(r.worst.plPct)}
+Beta: ${r.beta.toFixed(2)} · Volatilidad: ${r.portVol.toFixed(1)}% · Sharpe: ${r.sharpe.toFixed(2)}
+Riesgo: ${r.riskLevel} · Alpha vs S&P 500: ${pct(r.alpha)}
+Dividendos estimados/año: ${usd(r.dividends)}
+(Generado con ProfitAI · datos demo educativos)`;
+    try { await navigator.clipboard.writeText(txt); e.target.textContent = "✓ COPIADO"; }
+    catch { e.target.textContent = "✕ NO DISPONIBLE"; }
+    setTimeout(()=> e.target.textContent = "⧉ COPIAR RESUMEN", 2000);
+  };
+}
+
+/* ---------- Acción principal ---------- */
+document.getElementById("analyze").onclick = () => {
+  const pos = readPositions();
+  if (pos.length < 1) { alert("Agrega al menos una posición válida (ticker, cantidad y precios mayores a 0)."); return; }
+  render(compute(pos));
+};
+
+// Reloj
+function tick(){ document.getElementById("now").textContent =
+  new Date().toLocaleString("es-ES",{dateStyle:"medium",timeStyle:"medium"}); }
+tick(); setInterval(tick,1000);
+
+// Analiza automáticamente el portafolio de ejemplo al cargar
+document.getElementById("analyze").click();
+</script>
+</body>
+</html>

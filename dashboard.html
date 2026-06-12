@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProfitAI — Dashboard de Mercado</title>
+<style>
+  /* ============================================================
+     TERMINAL FINANCIERO — DASHBOARD DE MERCADO
+     Tema oscuro profesional · Fondo #0A0A0A · Acento #00C896
+     ============================================================ */
+  :root {
+    --bg: #0A0A0A;
+    --panel: #121413;
+    --panel-edge: #1E2522;
+    --accent: #00C896;
+    --up: #00C896;
+    --down: #FF4D5E;
+    --text: #E8ECEA;
+    --muted: #7A8580;
+    --mono: "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    padding-bottom: 48px;
+  }
+
+  /* ---------- HEADER ---------- */
+  header {
+    border-bottom: 1px solid var(--panel-edge);
+    padding: 18px 28px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; letter-spacing: 2px; font-weight: 600; }
+  .brand h1 span { color: var(--accent); }
+  .brand small { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  .header-meta { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .clock { font-size: 13px; color: var(--text); }
+  .clock .date { color: var(--muted); margin-right: 10px; }
+  .market-status {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 1.5px;
+    padding: 6px 12px;
+    border: 1px solid var(--panel-edge);
+    border-radius: 4px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.open { background: var(--up); box-shadow: 0 0 8px var(--up); animation: pulse 2s infinite; }
+  .dot.closed { background: var(--down); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ---------- BARRA DE ACTUALIZACIÓN ---------- */
+  .refresh-bar {
+    padding: 10px 28px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  .refresh-bar b { color: var(--accent); font-weight: 600; }
+
+  /* ---------- GRID DE ÍNDICES ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 16px;
+    padding: 24px 28px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    padding: 18px;
+    transition: border-color .2s, transform .2s;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .card .symbol { font-size: 11px; letter-spacing: 1.5px; color: var(--muted); }
+  .card .name { font-size: 14px; font-weight: 600; margin-top: 3px; }
+  .region {
+    font-size: 9px; letter-spacing: 1px; color: var(--muted);
+    border: 1px solid var(--panel-edge); border-radius: 3px;
+    padding: 2px 6px;
+  }
+  .price-row { display: flex; align-items: baseline; gap: 12px; margin: 14px 0 4px; flex-wrap: wrap; }
+  .price { font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }
+  .change { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+  .change.up { color: var(--up); }
+  .change.down { color: var(--down); }
+  .arrow { font-size: 12px; }
+  .pts { font-size: 11px; color: var(--muted); }
+  .spark { width: 100%; height: 54px; margin-top: 10px; display: block; }
+  .session-label { font-size: 9px; letter-spacing: 1px; color: var(--muted); margin-top: 6px; }
+
+  footer {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    padding-top: 24px;
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 14px 16px; }
+    .grid { padding: 16px; grid-template-columns: 1fr; }
+    .refresh-bar { padding: 10px 16px; }
+    .price { font-size: 21px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>PROFIT<span>AI</span></h1>
+    <small>DASHBOARD DE MERCADO</small>
+  </div>
+  <div class="header-meta">
+    <div class="clock"><span class="date" id="date"></span><span id="time"></span></div>
+    <div class="market-status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">—</span>
+    </div>
+  </div>
+</header>
+
+<div class="refresh-bar">
+  <span>Última actualización: <b id="lastUpdate">—</b></span>
+  <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span id="sourceTag">MODO DEMO · datos simulados</span>
+    <button id="refreshBtn" style="background:none;border:1px solid var(--panel-edge);color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:1.5px;font-weight:700;padding:6px 12px;border-radius:4px;cursor:pointer">⟳ ACTUALIZAR</button>
+  </span>
+</div>
+
+<main class="grid" id="grid"></main>
+
+<footer>DATOS EN VIVO VÍA ALPHA VANTAGE (ETFs ESPEJO) · SI SE AGOTA LA CUOTA DIARIA SE MUESTRA MODO DEMO</footer>
+
+<script>
+/* ==================================================================
+   CONFIGURACIÓN DE ÍNDICES
+   Valores base realistas (aprox. niveles de mercado recientes).
+   ================================================================== */
+// proxy = ETF que replica al índice (Alpha Vantage gratuito no cotiza
+// índices directamente, pero estos ETFs se mueven casi idéntico en %)
+const INDICES = [
+  { symbol: "SPX",  name: "S&P 500",            region: "USA", base: 6050.50,  vol: 0.9, proxy: "SPY"  },
+  { symbol: "IXIC", name: "NASDAQ Composite",    region: "USA", base: 19750.30, vol: 1.3, proxy: "QQQ"  },
+  { symbol: "DJI",  name: "Dow Jones Industrial",region: "USA", base: 44250.80, vol: 0.8, proxy: "DIA"  },
+  { symbol: "RUT",  name: "Russell 2000",        region: "USA", base: 2310.40,  vol: 1.5, proxy: "IWM"  },
+  { symbol: "VIX",  name: "VIX · Volatilidad",   region: "USA", base: 15.80,    vol: 6.0, proxy: "VIXY", inverse: true },
+  { symbol: "FTSE", name: "FTSE 100",            region: "UK",  base: 8420.60,  vol: 0.7, proxy: "EWU"  },
+  { symbol: "DAX",  name: "DAX 40",              region: "DE",  base: 21380.20, vol: 1.0, proxy: "EWG"  },
+  { symbol: "N225", name: "Nikkei 225",          region: "JP",  base: 39850.70, vol: 1.1, proxy: "EWJ"  },
+];
+
+/* ==================================================================
+   🔌 DATOS REALES — ALPHA VANTAGE (CONECTADO)
+   ------------------------------------------------------------------
+   ⚠️ Esta key es personal: no compartas este archivo públicamente
+   ni lo subas a una web sin antes mover la key a un backend.
+   Plan gratuito: ~25 consultas/día. Cada carga completa del
+   dashboard usa 8 (una por índice). Por eso la actualización es
+   MANUAL con el botón, no automática cada 30 s.
+   Pon USE_LIVE en false para volver al modo demo sin gastar cuota.
+   ================================================================== */
+const API_KEY = ""; // key en el backend
+const USE_LIVE = true;
+
+const live = {};
+let liveCount = 0;
+let limitHit = false;
+
+async function fetchSymbol(proxy) {
+  // Usa el mismo endpoint que el analizador — más robusto
+  const res  = await fetch(`/api/daily?symbol=${proxy}`);
+  if (res.status === 429) throw new Error("limit");
+  const data = await res.json();
+  if (data.error === "limit") throw new Error("limit");
+
+  const ts = data["Time Series (Daily)"];
+  if (!ts) throw new Error("nodata");
+
+  const dates  = Object.keys(ts).sort().slice(-6);
+  const closes = dates.map(d => parseFloat(ts[d]["4. close"]));
+  const price  = closes[closes.length - 1];
+  const prev   = closes[closes.length - 2];
+
+  return {
+    price,
+    changePct: ((price - prev) / prev) * 100,
+    changePts: price - prev,
+    history:   closes,
+  };
+}
+
+async function loadLive() {
+  const tag = document.getElementById("sourceTag");
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true;
+  liveCount = 0; limitHit = false;
+  for (let i = 0; i < INDICES.length; i++) {
+    const idx = INDICES[i];
+    tag.textContent = `CARGANDO DATOS REALES… ${i + 1}/${INDICES.length}`;
+    try {
+      live[idx.symbol] = await fetchSymbol(idx.proxy);
+      liveCount++;
+      render(); // render progresivo: cada tarjeta aparece al llegar
+    } catch (e) {
+      if (e.message === "limit") { limitHit = true; break; }
+      // 'nodata' u otro error: esa tarjeta queda en modo demo
+    }
+    await new Promise(r => setTimeout(r, 400)); // espaciado entre llamadas
+  }
+  btn.disabled = false;
+  tag.innerHTML = limitHit
+    ? `⚠️ <b>LÍMITE DIARIO DE API ALCANZADO</b> · ${liveCount}/8 en vivo, resto en demo`
+    : liveCount === INDICES.length
+      ? `● <b>DATOS EN VIVO</b> · vía Alpha Vantage (ETFs espejo)`
+      : `● <b>${liveCount}/8 EN VIVO</b> · resto en modo demo`;
+  render();
+}
+
+// --- Generador de datos simulados realistas ---
+const state = {};
+
+function gauss() { // ruido con distribución ~normal
+  let s = 0;
+  for (let i = 0; i < 6; i++) s += Math.random();
+  return (s - 3) / 3;
+}
+
+function initIndex(idx) {
+  // Historial de 5 sesiones (cierres) + sesión actual
+  const hist = [];
+  let p = idx.base * (1 + gauss() * 0.01);
+  for (let i = 0; i < 5; i++) {
+    p = p * (1 + gauss() * idx.vol / 100);
+    hist.push(p);
+  }
+  state[idx.symbol] = {
+    prevClose: hist[hist.length - 1],
+    price: hist[hist.length - 1],
+    history: hist.slice(),
+  };
+}
+
+function simulate(idx) {
+  const s = state[idx.symbol];
+  // Pequeño paso aleatorio intradía
+  s.price = s.price * (1 + gauss() * idx.vol / 100 * 0.35);
+  const intraday = s.history.slice(0, 5).concat([s.price]);
+  const changePct = ((s.price - s.prevClose) / s.prevClose) * 100;
+  const changePts = s.price - s.prevClose;
+  return { price: s.price, changePct, changePts, history: intraday };
+}
+
+// --- Sparkline SVG (últimas 5 sesiones + actual) ---
+function sparkline(points, up) {
+  const w = 260, h = 54, pad = 4;
+  const min = Math.min(...points), max = Math.max(...points);
+  const span = (max - min) || 1;
+  const step = (w - pad * 2) / (points.length - 1);
+  const coords = points.map((v, i) => {
+    const x = pad + i * step;
+    const y = h - pad - ((v - min) / span) * (h - pad * 2);
+    return [x, y];
+  });
+  const path = coords.map((c, i) => (i ? "L" : "M") + c[0].toFixed(1) + " " + c[1].toFixed(1)).join(" ");
+  const color = up ? "var(--up)" : "var(--down)";
+  const fillPath = path + ` L ${coords[coords.length-1][0].toFixed(1)} ${h} L ${pad} ${h} Z`;
+  const id = "g" + Math.random().toString(36).slice(2, 8);
+  return `
+    <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${up ? '#00C896' : '#FF4D5E'}" stop-opacity="0.25"/>
+          <stop offset="100%" stop-color="${up ? '#00C896' : '#FF4D5E'}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${fillPath}" fill="url(#${id})"/>
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${coords[coords.length-1][0].toFixed(1)}" cy="${coords[coords.length-1][1].toFixed(1)}" r="3" fill="${color}"/>
+    </svg>`;
+}
+
+// --- Render del grid ---
+function fmt(n, dec) {
+  return n.toLocaleString("es-ES", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function render() {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = INDICES.map(idx => {
+    const isLive = !!live[idx.symbol];
+    const d = isLive ? live[idx.symbol] : simulate(idx);
+    const up = d.changePct >= 0;
+    const dec = 2;
+    return `
+      <article class="card">
+        <div class="card-top">
+          <div>
+            <div class="symbol">${idx.symbol} <span style="color:${isLive ? "var(--up)" : "var(--muted)"}">· ${isLive ? "EN VIVO" : "DEMO"}</span></div>
+            <div class="name">${idx.name}</div>
+          </div>
+          <span class="region">${idx.region}</span>
+        </div>
+        <div class="price-row">
+          <span class="price">${fmt(d.price, dec)}</span>
+          <span class="change ${up ? "up" : "down"}">
+            <span class="arrow">${up ? "▲" : "▼"}</span>
+            ${up ? "+" : ""}${d.changePct.toFixed(2)}%
+            <span class="pts">(${up ? "+" : ""}${fmt(d.changePts, dec)})</span>
+          </span>
+        </div>
+        ${sparkline(d.history, up)}
+        <div class="session-label">${isLive ? `PRECIO DEL ETF ${idx.proxy} · ` : ""}ÚLTIMAS 5 SESIONES + HOY</div>
+      </article>`;
+  }).join("");
+
+  document.getElementById("lastUpdate").textContent =
+    new Date().toLocaleTimeString("es-ES");
+}
+
+// --- Reloj y estado del mercado (NYSE: 9:30–16:00 ET, L-V) ---
+function tickClock() {
+  const now = new Date();
+  document.getElementById("date").textContent =
+    now.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).toUpperCase();
+  document.getElementById("time").textContent = now.toLocaleTimeString("es-ES");
+
+  // Hora de Nueva York para el estado del mercado
+  const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const mins = ny.getHours() * 60 + ny.getMinutes();
+  const weekday = ny.getDay() >= 1 && ny.getDay() <= 5;
+  const open = weekday && mins >= 570 && mins < 960; // 9:30–16:00
+  const dot = document.getElementById("statusDot");
+  const txt = document.getElementById("statusText");
+  dot.className = "dot " + (open ? "open" : "closed");
+  txt.textContent = open ? "MERCADO ABIERTO · NYSE" : "MERCADO CERRADO · NYSE";
+}
+
+// --- Inicio ---
+INDICES.forEach(initIndex);
+render();
+tickClock();
+setInterval(tickClock, 1000);
+
+// En modo vivo: carga al abrir + botón manual (cada carga = 8 consultas).
+// En modo demo: actualización automática cada 30 s como antes.
+document.getElementById("refreshBtn").addEventListener("click", () => {
+  if (USE_LIVE) loadLive(); else render();
+});
+if (USE_LIVE) {
+  loadLive();
+} else {
+  setInterval(() => render(), 30000);
+}
+</script>
+</body>
+</html>

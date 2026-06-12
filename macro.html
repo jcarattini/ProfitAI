@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProfitAI — Análisis Macroeconómico</title>
+<style>
+  /* ============================================================
+     TERMINAL FINANCIERO — ANÁLISIS MACROECONÓMICO
+     Mismo tema visual · Fondo #0A0A0A · Acento #00C896
+     ============================================================ */
+  :root {
+    --bg: #0A0A0A;
+    --panel: #121413;
+    --panel-edge: #1E2522;
+    --accent: #00C896;
+    --up: #00C896;
+    --down: #FF4D5E;
+    --warn: #FFC44D;
+    --text: #E8ECEA;
+    --muted: #7A8580;
+    --mono: "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; padding-bottom: 48px; }
+
+  header {
+    border-bottom: 1px solid var(--panel-edge);
+    padding: 18px 28px;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; justify-content: space-between;
+    position: sticky; top: 0; background: rgba(10,10,10,.92); backdrop-filter: blur(8px); z-index: 10;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; letter-spacing: 2px; font-weight: 600; }
+  .brand h1 span { color: var(--accent); }
+  .brand small { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  header time { font-size: 12px; color: var(--muted); }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 28px; display: grid; gap: 16px; }
+
+  .section { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 8px; padding: 20px; }
+  .section h2 {
+    font-size: 11px; letter-spacing: 2px; color: var(--muted); font-weight: 600;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .section h2::before { content: ""; width: 8px; height: 8px; background: var(--accent); border-radius: 2px; }
+
+  /* ---------- 1 · RESUMEN EJECUTIVO ---------- */
+  .exec { border-color: var(--accent); }
+  .exec-top { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .semaforo { display: flex; align-items: center; gap: 12px; }
+  .luz { width: 16px; height: 16px; border-radius: 50%; }
+  .luz.verde { background: var(--up); box-shadow: 0 0 14px var(--up); animation: glow 2.4s infinite; }
+  .luz.amarillo { background: var(--warn); box-shadow: 0 0 14px var(--warn); animation: glow 2.4s infinite; }
+  .luz.rojo { background: var(--down); box-shadow: 0 0 14px var(--down); animation: glow 2.4s infinite; }
+  @keyframes glow { 0%,100%{opacity:1} 50%{opacity:.55} }
+  .semaforo b { font-size: 13px; letter-spacing: 2px; }
+  .verde-t { color: var(--up); } .amarillo-t { color: var(--warn); } .rojo-t { color: var(--down); }
+  .exec p { font-size: 13px; line-height: 1.9; }
+  .exec .just { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.7; }
+  .stamp { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+  /* ---------- TARJETAS DE INDICADORES ---------- */
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .stat { border: 1px solid var(--panel-edge); border-radius: 6px; padding: 13px; }
+  .stat .lbl { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
+  .stat .val { font-size: 17px; font-weight: 700; }
+  .stat .sub { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.55; }
+  .up-t { color: var(--up); } .down-t { color: var(--down); } .warn-t { color: var(--warn); }
+
+  /* ---------- TABLAS ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-size: 9px; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--panel-edge); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--panel-edge); }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-weight: 600; }
+  .table-title { font-size: 10px; letter-spacing: 1.5px; color: var(--accent); margin: 14px 0 6px; }
+  .table-title:first-of-type { margin-top: 0; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 800px){ .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ---------- CURVA DE RENDIMIENTOS ---------- */
+  .curve-wrap { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 800px){ .curve-wrap { grid-template-columns: 1fr; } }
+  .curve-wrap svg { width: 100%; height: 190px; }
+  .axis-lbl { font-size: 9px; fill: var(--muted); font-family: var(--mono); letter-spacing: 1px; }
+  .pill { display: inline-block; padding: 5px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; }
+  .pill.ok { background: rgba(0,200,150,.14); color: var(--up); border: 1px solid var(--up); }
+  .pill.alerta { background: rgba(255,196,77,.12); color: var(--warn); border: 1px solid var(--warn); }
+  .pill.peligro { background: rgba(255,77,94,.14); color: var(--down); border: 1px solid var(--down); }
+
+  /* ---------- CALENDARIO ---------- */
+  .impact { font-size: 9px; letter-spacing: 1px; padding: 3px 8px; border-radius: 3px; font-weight: 700; }
+  .impact.alto { background: rgba(255,77,94,.15); color: var(--down); }
+  .impact.medio { background: rgba(255,196,77,.12); color: var(--warn); }
+  .impact.bajo { background: rgba(0,200,150,.12); color: var(--up); }
+
+  /* ---------- EDUCATIVO ---------- */
+  .edu li { list-style: none; display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--panel-edge); font-size: 12.5px; line-height: 1.75; }
+  .edu li:last-child { border-bottom: none; }
+  .edu .ico { font-size: 16px; flex-shrink: 0; }
+  .edu b { color: var(--accent); }
+
+  footer { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: 1px; padding-top: 24px; }
+
+  @media (max-width: 640px){
+    .wrap { padding: 16px; }
+    header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>PROFIT<span>AI</span></h1>
+    <small>ANÁLISIS MACROECONÓMICO</small>
+  </div>
+  <time id="now"></time>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ 1 · RESUMEN EJECUTIVO ============ -->
+  <section class="section exec">
+    <div class="exec-top">
+      <h2 style="margin:0">RESUMEN EJECUTIVO · ECONOMÍA GLOBAL</h2>
+      <div class="semaforo">
+        <span class="luz" id="luz"></span>
+        <b id="luzTxt"></b>
+      </div>
+    </div>
+    <p id="resumen"></p>
+    <p class="just" id="justif"></p>
+    <p class="stamp" style="margin-top:12px">ACTUALIZADO: <span id="stamp"></span> · DATOS SIMULADOS (DEMO)</p>
+  </section>
+
+  <!-- ============ 2 · INDICADORES USA ============ -->
+  <section class="section">
+    <h2>INDICADORES USA</h2>
+    <div class="grid-stats" id="usa"></div>
+  </section>
+
+  <!-- ============ 3 · MERCADOS GLOBALES ============ -->
+  <section class="section">
+    <h2>MERCADOS GLOBALES</h2>
+    <div class="grid-2">
+      <div>
+        <div class="table-title">DIVISAS PRINCIPALES</div>
+        <table id="fx"></table>
+        <div class="table-title">COMMODITIES</div>
+        <table id="cmd"></table>
+      </div>
+      <div>
+        <div class="table-title">CRIPTOMONEDAS · TOP 5</div>
+        <table id="crypto"></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 · BONOS Y RENTA FIJA ============ -->
+  <section class="section">
+    <h2>BONOS Y RENTA FIJA · TESORO USA</h2>
+    <div class="curve-wrap">
+      <div id="curve"></div>
+      <div class="grid-stats" style="grid-template-columns:1fr" id="bonos"></div>
+    </div>
+  </section>
+
+  <!-- ============ 5 · CALENDARIO ECONÓMICO ============ -->
+  <section class="section">
+    <h2>CALENDARIO ECONÓMICO · PRÓXIMOS 7 EVENTOS</h2>
+    <table id="cal"></table>
+  </section>
+
+  <!-- ============ 6 · LO QUE ESTO SIGNIFICA PARA TI ============ -->
+  <section class="section">
+    <h2>LO QUE ESTO SIGNIFICA PARA TI</h2>
+    <ul class="edu" id="edu"></ul>
+  </section>
+
+</div>
+
+<footer>DATOS SIMULADOS CON FINES EDUCATIVOS · NO CONSTITUYE ASESORÍA FINANCIERA</footer>
+
+<script>
+/* ==================================================================
+   🔌 CONEXIÓN A DATOS REALES (opcional)
+   ------------------------------------------------------------------
+   - FRED (fred.stlouisfed.org): API gratuita oficial para CPI, PCE,
+     Fed Funds, desempleo, GDP, curva del Tesoro.
+     Ej: https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=KEY&file_type=json
+   - Alpha Vantage: divisas (CURRENCY_EXCHANGE_RATE), commodities (WTI, BRENT, NATURAL_GAS),
+     cripto (DIGITAL_CURRENCY_DAILY).
+   - Calendario económico: investing.com o tradingeconomics (requiere scraping o plan API).
+   Sustituye el objeto DATA por tus llamadas reales manteniendo el formato.
+   ================================================================== */
+
+/* ---------- DATOS SIMULADOS (escenario coherente de demo) ---------- */
+const DATA = {
+  // Escenario: aterrizaje suave con inflación cediendo lentamente
+  usa: [
+    { lbl:"FED FUNDS RATE", val:"3.75 – 4.00%", cls:"warn-t", sub:"2 recortes en los últimos 12 meses · Próxima reunión FOMC: 29–30 julio 2026" },
+    { lbl:"INFLACIÓN CPI (INTERANUAL)", val:"2.6%", cls:"warn-t", sub:"Mes anterior: 2.8% · Cediendo, aún sobre la meta del 2%" },
+    { lbl:"INFLACIÓN PCE (SUBYACENTE)", val:"2.4%", cls:"warn-t", sub:"Mes anterior: 2.5% · La medida preferida de la Fed" },
+    { lbl:"DESEMPLEO", val:"4.2%", cls:"up-t", sub:"Estable · Mercado laboral sólido sin sobrecalentarse" },
+    { lbl:"NÓMINAS NO AGRÍCOLAS (NFP)", val:"+165 K", cls:"up-t", sub:"Último dato mensual · Consenso esperaba +150 K" },
+    { lbl:"GDP · CRECIMIENTO TRIMESTRAL", val:"+2.1%", cls:"up-t", sub:"Anualizado · Q1 2026 · Crecimiento moderado y positivo" },
+    { lbl:"ISM MANUFACTURERO", val:"49.4", cls:"down-t", sub:"Bajo 50 = contracción leve del sector industrial" },
+    { lbl:"ISM SERVICIOS", val:"53.1", cls:"up-t", sub:"Sobre 50 = el sector servicios sigue en expansión" },
+    { lbl:"CONFIANZA DEL CONSUMIDOR", val:"102.8", cls:"up-t", sub:"Conference Board · Mejorando por tercer mes consecutivo" },
+  ],
+  fx: [
+    ["EUR/USD", 1.0985, +0.22], ["GBP/USD", 1.2840, +0.10],
+    ["USD/JPY", 151.40, -0.35], ["USD/CHF", 0.8765, -0.12],
+  ],
+  cmd: [
+    ["ORO", "2,985 $/oz", +0.6], ["PLATA", "34.80 $/oz", +1.1],
+    ["PETRÓLEO WTI", "71.20 $/bbl", -0.8], ["PETRÓLEO BRENT", "75.10 $/bbl", -0.7],
+    ["GAS NATURAL", "3.18 $/MMBtu", +2.4],
+  ],
+  crypto: [
+    ["BTC · Bitcoin", "104,250 $", +1.8], ["ETH · Ethereum", "3,920 $", +2.5],
+    ["BNB", "672 $", +0.9], ["SOL · Solana", "188 $", +3.4], ["XRP", "2.31 $", -1.2],
+  ],
+  curva: [ ["2Y",3.92], ["5Y",4.01], ["10Y",4.18], ["30Y",4.45] ],
+  spreadIG_HY: { ig: 0.92, hy: 3.05 },
+  calendario: [
+    ["MIÉ 17 JUN", "Decisión de tasas FOMC + conferencia Powell", "ALTO", "Sin cambios (3.75–4.00%)"],
+    ["JUE 18 JUN", "Solicitudes de subsidio por desempleo", "MEDIO", "225 K"],
+    ["VIE 19 JUN", "Ventas minoristas (mayo)", "MEDIO", "+0.3% mensual"],
+    ["MAR 23 JUN", "PMI Flash manufacturero y servicios", "MEDIO", "Manuf. 49.8 · Serv. 53.0"],
+    ["JUE 25 JUN", "GDP Q1 final + bienes duraderos", "MEDIO", "+2.1% anualizado"],
+    ["VIE 26 JUN", "Inflación PCE (mayo)", "ALTO", "+2.4% subyacente interanual"],
+    ["VIE 03 JUL", "Nóminas no agrícolas NFP (junio)", "ALTO", "+155 K · Desempleo 4.2%"],
+  ],
+};
+
+/* ---------- Semáforo y resumen (derivados de los datos) ---------- */
+function evaluarSemaforo() {
+  // Reglas simples de demo: curva, inflación e ISM
+  const inv = DATA.curva[2][1] - DATA.curva[0][1]; // 10Y - 2Y
+  const cpi = 2.6, ism = 49.4;
+  if (inv < 0 || cpi > 4 || DATA.spreadIG_HY.hy > 5) return "ROJO";
+  if (cpi > 2.3 || ism < 50) return "AMARILLO";
+  return "VERDE";
+}
+
+const RESUMENES = {
+  VERDE: "La economía global atraviesa un momento favorable: la inflación está controlada, el empleo es sólido y los bancos centrales tienen margen para apoyar el crecimiento. Los mercados de renta variable cuentan con viento de cola y la renta fija ofrece rendimientos razonables sin señales de estrés crediticio.",
+  AMARILLO: "La economía global está en modo de transición. En EE.UU. la inflación sigue cediendo (CPI 2.6%) pero aún no alcanza la meta del 2%, por lo que la Fed mantiene las tasas en 3.75–4.00% y recorta con cautela. El empleo se mantiene sólido (desempleo 4.2%) y el consumo resiste, aunque la industria muestra una contracción leve (ISM 49.4). La curva de rendimientos volvió a terreno positivo, alejando la señal clásica de recesión. En resumen: crecimiento moderado, sin euforia ni pánico — un entorno donde la selección de activos importa más que la dirección general del mercado.",
+  ROJO: "Se acumulan señales de alerta en la economía global: presiones inflacionarias persistentes, condiciones financieras restrictivas y deterioro en los indicadores adelantados. Es un entorno que históricamente precede a desaceleraciones fuertes. La prudencia, la liquidez y la calidad crediticia pasan a ser prioritarias.",
+};
+const JUSTIF = {
+  VERDE: "Justificación: inflación en meta, curva positiva, ISM en expansión y spreads crediticios comprimidos.",
+  AMARILLO: "Justificación del AMARILLO: inflación aún sobre la meta (2.6% vs 2.0%), ISM manufacturero bajo 50, compensado por empleo sólido, curva de rendimientos positiva (+0.26 pts) y spreads crediticios estables.",
+  ROJO: "Justificación: combinación de curva invertida, inflación elevada y/o spreads de crédito en zona de estrés.",
+};
+
+/* ---------- Render ---------- */
+const f2 = n => n.toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2});
+const chg = v => `<span class="${v>=0?"up-t":"down-t"}">${v>=0?"▲ +":"▼ "}${Math.abs(v).toFixed(2)}%</span>`;
+
+// 1 · Resumen + semáforo
+const nivel = evaluarSemaforo();
+const luz = document.getElementById("luz"), luzTxt = document.getElementById("luzTxt");
+luz.className = "luz " + nivel.toLowerCase();
+luzTxt.textContent = "RIESGO GLOBAL: " + nivel;
+luzTxt.className = nivel.toLowerCase() + "-t";
+document.getElementById("resumen").textContent = RESUMENES[nivel];
+document.getElementById("justif").textContent = JUSTIF[nivel];
+document.getElementById("stamp").textContent = new Date().toLocaleString("es-ES",{dateStyle:"full",timeStyle:"short"}).toUpperCase();
+
+// 2 · Indicadores USA
+document.getElementById("usa").innerHTML = DATA.usa.map(s => `
+  <div class="stat">
+    <div class="lbl">${s.lbl}</div>
+    <div class="val ${s.cls}">${s.val}</div>
+    <div class="sub">${s.sub}</div>
+  </div>`).join("");
+
+// 3 · Mercados globales
+function tabla(id, head, rows, fmt) {
+  document.getElementById(id).innerHTML =
+    `<tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr>` +
+    rows.map(fmt).join("");
+}
+tabla("fx", ["PAR","COTIZACIÓN","VAR. DÍA"], DATA.fx,
+  r=>`<tr><td>${r[0]}</td><td class="num">${f2(r[1])}</td><td>${chg(r[2])}</td></tr>`);
+tabla("cmd", ["ACTIVO","PRECIO","VAR. DÍA"], DATA.cmd,
+  r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${chg(r[2])}</td></tr>`);
+tabla("crypto", ["ACTIVO","PRECIO","VAR. 24H"], DATA.crypto,
+  r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${chg(r[2])}</td></tr>`);
+
+// 4 · Curva de rendimientos (SVG)
+(function renderCurva(){
+  const pts = DATA.curva, w=520, h=190, padX=42, padY=26;
+  const ys = pts.map(p=>p[1]);
+  const min = Math.min(...ys)-0.15, max = Math.max(...ys)+0.15, span=max-min;
+  const step = (w-padX-16)/(pts.length-1);
+  const xy = pts.map((p,i)=>[padX+i*step, h-padY-((p[1]-min)/span)*(h-padY-18)]);
+  const path = xy.map((c,i)=>(i?"L":"M")+c[0]+" "+c[1].toFixed(1)).join(" ");
+  document.getElementById("curve").innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}">
+      <path d="${path}" fill="none" stroke="#00C896" stroke-width="2.5" stroke-linejoin="round"/>
+      ${xy.map((c,i)=>`
+        <circle cx="${c[0]}" cy="${c[1].toFixed(1)}" r="4" fill="#00C896"/>
+        <text x="${c[0]}" y="${h-8}" text-anchor="middle" class="axis-lbl">${pts[i][0]}</text>
+        <text x="${c[0]}" y="${(c[1]-12).toFixed(1)}" text-anchor="middle" class="axis-lbl" fill="#E8ECEA">${pts[i][1].toFixed(2)}%</text>
+      `).join("")}
+    </svg>`;
+})();
+
+// Indicadores de bonos
+const inv = DATA.curva[2][1] - DATA.curva[0][1]; // 10Y - 2Y
+const invertida = inv < 0;
+const spread = DATA.spreadIG_HY;
+document.getElementById("bonos").innerHTML = `
+  <div class="stat">
+    <div class="lbl">SPREAD 10Y − 2Y (INVERSIÓN DE CURVA)</div>
+    <div class="val ${invertida?"down-t":"up-t"}">${inv>=0?"+":""}${inv.toFixed(2)} pts</div>
+    <div class="sub" style="margin-top:8px">
+      <span class="pill ${invertida?"peligro":"ok"}">${invertida?"CURVA INVERTIDA · SEÑAL DE RECESIÓN":"CURVA POSITIVA · SIN SEÑAL DE RECESIÓN"}</span>
+    </div>
+    <div class="sub">Una curva invertida (corto plazo rinde más que largo plazo) ha precedido a la mayoría de las recesiones en EE.UU.</div>
+  </div>
+  <div class="stat">
+    <div class="lbl">SPREAD CREDITICIO · IG vs HY</div>
+    <div class="val">IG ${spread.ig.toFixed(2)}% · HY ${spread.hy.toFixed(2)}%</div>
+    <div class="sub" style="margin-top:8px">
+      <span class="pill ${spread.hy>5?"peligro":spread.hy>4?"alerta":"ok"}">${spread.hy>5?"ESTRÉS CREDITICIO":spread.hy>4?"VIGILAR":"CRÉDITO ESTABLE"}</span>
+    </div>
+    <div class="sub">Diferencial sobre Tesoro de bonos grado de inversión (IG) y alto rendimiento (HY). Spreads amplios = miedo en el mercado de crédito.</div>
+  </div>`;
+
+// 5 · Calendario económico
+tabla("cal", ["FECHA","EVENTO","IMPACTO","CONSENSO DEL MERCADO"], DATA.calendario,
+  r=>`<tr>
+    <td style="white-space:nowrap;color:var(--muted)">${r[0]}</td>
+    <td>${r[1]}</td>
+    <td><span class="impact ${r[2].toLowerCase()}">${r[2]}</span></td>
+    <td style="color:var(--muted)">${r[3]}</td>
+  </tr>`);
+
+// 6 · Lo que esto significa para ti
+document.getElementById("edu").innerHTML = [
+  ["💼","<b>Si inviertes en bolsa:</b> el escenario de tasas a la baja y crecimiento moderado suele favorecer a las acciones, pero con inflación aún sobre la meta los datos de CPI y PCE pueden mover el mercado con fuerza. Diversificar entre sectores reduce los sustos."],
+  ["🏦","<b>Si eres ahorrador:</b> con la Fed en 3.75–4.00%, los depósitos, letras del Tesoro y fondos monetarios todavía pagan rendimientos atractivos. A medida que bajen las tasas, esos rendimientos irán cayendo: fijar tasas hoy a plazos más largos puede tener sentido."],
+  ["👷","<b>Si te preocupa el empleo:</b> el desempleo en 4.2% y nóminas creciendo indican un mercado laboral sano. El sector servicios sigue contratando; la industria manufacturera es la zona más floja."],
+  ["🏠","<b>Si piensas pedir un crédito o hipoteca:</b> las tasas de largo plazo (10Y en 4.18%) marcan el costo de las hipotecas. Si la inflación sigue cediendo, los recortes de la Fed podrían abaratar el crédito en los próximos trimestres — pero no está garantizado."],
+].map(([ico,txt])=>`<li><span class="ico">${ico}</span><span>${txt}</span></li>`).join("");
+
+// Reloj
+function tick(){ document.getElementById("now").textContent =
+  new Date().toLocaleString("es-ES",{dateStyle:"medium",timeStyle:"medium"}); }
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>
